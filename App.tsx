@@ -3,7 +3,7 @@ import Header from './components/Header';
 import CustomerView from './components/CustomerView';
 import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
-import { UserRole, Order, Restaurant, Driver, Customer, OrderStatus, MenuItem, Address } from './types';
+import { UserRole, Order, Restaurant, Driver, Customer, OrderStatus, MenuItem, Address, Review } from './types';
 import { RESTAURANT_DATA, DRIVER_DATA, CUSTOMER_DATA } from './constants';
 import Toast from './components/Toast';
 
@@ -72,6 +72,8 @@ const App: React.FC = () => {
               total: orderData.foodTotal,
               customerAddress: address,
               restaurantAddress: restaurant?.address || 'Restaurant Address',
+              isReviewed: false,
+              isRestaurantReviewed: false,
             };
             setOrders(prevOrders => [...prevOrders, newOrder]);
             resolve();
@@ -149,10 +151,70 @@ const App: React.FC = () => {
       updateOrderStatus(orderId, OrderStatus.AWAITING_PICKUP);
   }
 
+  const handleDriverReview = (orderId: string, driverId: string, rating: number, comment: string) => {
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        setDrivers(prevDrivers => prevDrivers.map(driver => {
+          if (driver.id === driverId) {
+            const newReview: Review = {
+              orderId,
+              customerId: customer.id,
+              customerName: customer.name,
+              rating,
+              comment,
+            };
+            const updatedReviews = [...driver.reviews, newReview];
+            const newAverageRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
+            return {
+              ...driver,
+              reviews: updatedReviews,
+              rating: parseFloat(newAverageRating.toFixed(1)),
+            };
+          }
+          return driver;
+        }));
+
+        setOrders(prevOrders => prevOrders.map(order =>
+          order.id === orderId ? { ...order, isReviewed: true } : order
+        ));
+        resolve();
+      }, 1000);
+    });
+  };
+
+  const handleRestaurantReview = (orderId: string, restaurantId: string, rating: number, comment: string) => {
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        setRestaurants(prevRestaurants => prevRestaurants.map(restaurant => {
+          if (restaurant.id === restaurantId) {
+            const newReview: Review = {
+              orderId,
+              customerId: customer.id,
+              customerName: customer.name,
+              rating,
+              comment,
+            };
+            const updatedReviews = [...restaurant.reviews, newReview];
+            const newAverageRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
+            return {
+              ...restaurant,
+              reviews: updatedReviews,
+              rating: parseFloat(newAverageRating.toFixed(1)),
+            };
+          }
+          return restaurant;
+        }));
+
+        setOrders(prevOrders => prevOrders.map(order =>
+          order.id === orderId ? { ...order, isRestaurantReviewed: true } : order
+        ));
+        resolve();
+      }, 1000);
+    });
+  };
+
   const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[], originalMenu?: MenuItem[]) => {
     setRestaurants(prev => prev.map(r => r.id === restaurantId ? {...r, menu: newMenu} : r));
-    // In a real app, you would return a promise that resolves on success and rejects on error
-    // If it rejects, you'd call setRestaurants again with the originalMenu to revert the change
   }
 
   const handleSettleLedger = (restaurantId: string, driverId: string) => {
@@ -185,7 +247,6 @@ const App: React.FC = () => {
   
   const handleUpdateAddresses = (addresses: Address[], originalAddresses?: Address[]) => {
       setCustomer(prev => ({...prev, addresses}));
-      // In a real app, you would have logic here to revert to originalAddresses on API failure
   }
   
   const handleUpdateCustomerProfile = (name: string, phoneNumber: string) => {
@@ -212,13 +273,15 @@ const App: React.FC = () => {
       case UserRole.CUSTOMER:
         return <CustomerView 
                   restaurants={restaurants} 
-                  orders={orders.filter(o => o.customerId === customer.id && o.status !== OrderStatus.DELIVERED)} 
+                  orders={orders.filter(o => o.customerId === customer.id)} 
                   drivers={drivers}
                   customer={customer}
                   onPlaceOrder={handlePlaceOrder}
                   onConfirmPayment={handleConfirmPayment}
                   onUpdateAddresses={handleUpdateAddresses}
                   onUpdateProfile={handleUpdateCustomerProfile}
+                  onDriverReview={handleDriverReview}
+                  onRestaurantReview={handleRestaurantReview}
                />;
       case UserRole.DRIVER:
         return <DriverView 

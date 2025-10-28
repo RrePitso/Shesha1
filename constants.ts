@@ -26,6 +26,7 @@ export const RESTAURANT_DATA: Restaurant[] = [
     ],
     driverLedger: {},
     address: '101 Pine St, Springfield, IL',
+    reviews: [],
   },
   {
     id: 'rest-2',
@@ -40,6 +41,7 @@ export const RESTAURANT_DATA: Restaurant[] = [
     ],
     driverLedger: {},
     address: '202 Cedar St, Springfield, IL',
+    reviews: [],
   },
   {
     id: 'rest-3',
@@ -54,6 +56,7 @@ export const RESTAURANT_DATA: Restaurant[] = [
     ],
     driverLedger: {},
     address: '303 Birch St, Springfield, IL',
+    reviews: [],
   },
 ];
 
@@ -68,7 +71,8 @@ export const DRIVER_DATA: Driver[] = [
     earnings: {},
     restaurantLedger: {},
     paymentPhoneNumber: '555-123-4567',
-    bankAccountNumber: '...-9876'
+    bankAccountNumber: '...-9876',
+    reviews: [],
   },
   {
     id: 'driver-2',
@@ -80,6 +84,7 @@ export const DRIVER_DATA: Driver[] = [
     earnings: {},
     restaurantLedger: {},
     paymentPhoneNumber: '555-987-6543',
-    bankAccountNumber: '...-1234'
+    bankAccountNumber: '...-1234',
+    reviews: [],
   },
 ];

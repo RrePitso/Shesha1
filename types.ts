@@ -38,6 +38,7 @@ export interface Restaurant {
   menu: MenuItem[];
   driverLedger: { [driverId: string]: number };
   address: string;
+  reviews: Review[];
 }
 
 export interface Address {
@@ -54,6 +55,14 @@ export interface Customer {
     phoneNumber?: string;
 }
 
+export interface Review {
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+}
+
 export interface Order {
   id: string;
   restaurantId: string;
@@ -66,6 +75,8 @@ export interface Order {
   total: number;
   restaurantAddress: string;
   customerAddress: string;
+  isReviewed?: boolean;
+  isRestaurantReviewed?: boolean;
 }
 
 export interface Driver {
@@ -79,4 +90,5 @@ export interface Driver {
   restaurantLedger: { [restaurantId: string]: number };
   paymentPhoneNumber?: string;
   bankAccountNumber?: string;
+  reviews: Review[];
 }

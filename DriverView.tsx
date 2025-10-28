@@ -12,8 +12,10 @@ interface DriverViewProps {
   restaurants: Restaurant[];
   customer: Customer;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  acceptOrder: (orderId: string, driverId: string) => void;
-  onUpdateDriver: (driver: Driver) => void;
+  // FIX: Changed return type to Promise<void> to match async function
+  acceptOrder: (orderId: string, driverId: string) => Promise<void>;
+  // FIX: Changed return type to Promise<void> to match async function
+  onUpdateDriver: (driver: Driver) => Promise<void>;
 }
 
 const DriverView: React.FC<DriverViewProps> = ({ drivers, orders, restaurants, customer, updateOrderStatus, acceptOrder, onUpdateDriver }) => {
@@ -24,9 +26,10 @@ const DriverView: React.FC<DriverViewProps> = ({ drivers, orders, restaurants, c
     setSelectedDriver(driver);
   };
 
-  const handleAcceptOrder = (orderId: string) => {
+  // FIX: Made function async and awaited the acceptOrder call to handle the promise.
+  const handleAcceptOrder = async (orderId: string) => {
     if (selectedDriver) {
-      acceptOrder(orderId, selectedDriver.id);
+      await acceptOrder(orderId, selectedDriver.id);
     }
   };
 
