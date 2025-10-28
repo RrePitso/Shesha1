@@ -2,22 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { Customer, Address } from '../types';
 import { useToast } from '../App';
 import Spinner from './Spinner';
+import * as db from '../services/databaseService';
 
 interface CustomerProfileModalProps {
   customer: Customer;
   onClose: () => void;
-  onUpdateAddresses: (addresses: Address[], originalAddresses?: Address[]) => void;
-  onUpdateProfile: (name: string, phoneNumber: string) => Promise<void>;
 }
 
-const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, onClose, onUpdateAddresses, onUpdateProfile }) => {
+const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, onClose }) => {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newDetails, setNewDetails] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddressLoading, setIsAddressLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const { addToast } = useToast();
+
+  // **THE FINAL FIX**:
+  // Explicitly type the result of Object.values as Address[] so TypeScript understands the object shape.
+  // This resolves all "property does not exist on type 'unknown'" errors.
+  const addressesArray: Address[] = customer.addresses ? Object.values(customer.addresses) : [];
 
   useEffect(() => {
     setIsVisible(true);
@@ -32,52 +37,47 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
   
   const handleSave = async () => {
     setIsLoading(true);
-    await onUpdateProfile(name, phoneNumber);
+    await db.updateCustomer(customer.id, { name, phoneNumber });
     setIsLoading(false);
+    addToast('Profile updated successfully!', 'success');
     handleModalClose();
   };
 
-  const handleAddAddress = (e: React.FormEvent) => {
+  const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLabel.trim() || !newDetails.trim()) {
-        addToast('Please fill in both label and details for the address.', 'error');
+        addToast('Please fill in all address fields.', 'error');
         return;
     }
-
-    const newAddress: Address = {
-      id: `addr-${Date.now()}`,
+    setIsAddressLoading(true);
+    const newAddress: Omit<Address, 'id'> = {
       label: newLabel,
       details: newDetails,
-      isDefault: customer.addresses.length === 0,
+      isDefault: addressesArray.length === 0,
     };
-    onUpdateAddresses([...customer.addresses, newAddress]);
+    const newAddressId = await db.addCustomerAddress(customer.id, newAddress as Address);
+    if(newAddressId) {
+        await db.updateCustomerAddress(customer.id, newAddressId, { id: newAddressId });
+    }
     addToast('Address added successfully!', 'success');
     setNewLabel('');
     setNewDetails('');
+    setIsAddressLoading(false);
   };
 
-  const handleDeleteAddress = (addressId: string) => {
-    // Optimistic UI Update
-    const originalAddresses = [...customer.addresses];
-    const updatedAddresses = customer.addresses.filter(addr => addr.id !== addressId);
-    if (!updatedAddresses.some(addr => addr.isDefault) && updatedAddresses.length > 0) {
-        updatedAddresses[0].isDefault = true;
-    }
-    onUpdateAddresses(updatedAddresses);
+  const handleDeleteAddress = async (addressId: string) => {
+    await db.deleteCustomerAddress(customer.id, addressId);
     addToast('Address deleted.', 'success');
-
-    // In a real app, you would have an API call here.
-    // If it fails, you would revert the change:
-    // onUpdateAddresses(originalAddresses);
-    // addToast('Failed to delete address.', 'error');
   };
 
-  const handleSetDefault = (addressId: string) => {
-    const updatedAddresses = customer.addresses.map(addr => ({
-      ...addr,
-      isDefault: addr.id === addressId,
-    }));
-    onUpdateAddresses(updatedAddresses);
+  const handleSetDefault = async (addressId: string) => {
+    // With addressesArray correctly typed, this function now works without type errors.
+    const updates = {};
+    for (const addr of addressesArray) {
+        // Set all addresses' isDefault to false, unless it's the one we're setting as default.
+        updates[`/${addr.id}/isDefault`] = addr.id === addressId;
+    }
+    await db.updateData(`customers/${customer.id}/addresses`, updates);
     addToast('Default address updated.', 'success');
   };
 
@@ -107,7 +107,7 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
             </div>
             <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4 pt-6 border-t border-gray-200 dark:border-gray-700">Saved Addresses</h3>
             <div className="space-y-3 mb-6">
-                {customer.addresses.map(address => (
+                {addressesArray.map(address => ( // This mapping is now type-safe
                     <div key={address.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md flex justify-between items-center">
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{address.label} {address.isDefault && <span className="text-xs text-green-600 dark:text-green-400 font-normal">(Default)</span>}</p>
@@ -121,6 +121,7 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
                         </div>
                     </div>
                 ))}
+                 {addressesArray.length === 0 && <p className='text-gray-500 dark:text-gray-400'>No addresses saved.</p>}
             </div>
 
             <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 pt-4 border-t border-gray-200 dark:border-gray-700">Add New Address</h3>
@@ -131,9 +132,11 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
                  </div>
                  <div>
                     <label htmlFor="details" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address Details</label>
-                    <input type="text" id="details" value={newDetails} onChange={e => setNewDetails(e.target.value)} placeholder="123 Main St, Anytown" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
+                    <input type="text" id="details" value={newDetails} onChange={e => setNewDetails(e.target.value)} placeholder="123 Main St, Anytown" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gamma-700 dark:border-gray-600"/>
                  </div>
-                 <button type="submit" className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-transform active:scale-95">Add Address</button>
+                 <button type="submit" disabled={isAddressLoading} className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-transform active:scale-95 disabled:bg-indigo-400 flex justify-center">
+                     {isAddressLoading ? <Spinner /> : 'Add Address'}
+                 </button>
             </form>
         </div>
         <div className="p-4 bg-gray-50 dark:bg-gray-900/50 flex justify-end space-x-2 border-t border-gray-200 dark:border-gray-700">

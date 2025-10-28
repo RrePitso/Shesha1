@@ -1,57 +1,110 @@
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import Header from './components/Header';
 import CustomerView from './components/CustomerView';
 import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
-import { UserRole, Order, Restaurant, Driver, Customer, OrderStatus, MenuItem, Address, Review } from './types';
-import { RESTAURANT_DATA, DRIVER_DATA, CUSTOMER_DATA } from './constants';
+import Login from './components/Login';
+import SignUp from './components/SignUp';
+import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus } from './types';
+import * as db from './services/databaseService';
+import { onAuthStateChangedListener, getUserRole, signOutUser } from './services/authService';
+import { onValue, ref } from 'firebase/database';
+import { database } from './firebase';
 import Toast from './components/Toast';
+import Spinner from './components/Spinner';
+import { User } from 'firebase/auth';
 
-// Toast Context for global notifications
-type ToastMessage = {
-  id: number;
-  message: string;
-  type: 'success' | 'error';
-};
-
-interface ToastContextType {
-  addToast: (message: string, type: 'success' | 'error') => void;
-}
-
+// Toast Context
+type ToastMessage = { id: number; message: string; type: 'success' | 'error'; };
+interface ToastContextType { addToast: (message: string, type: 'success' | 'error') => void; }
 const ToastContext = createContext<ToastContextType | null>(null);
 export const useToast = () => {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
+  if (!context) throw new Error('useToast must be used within a ToastProvider');
   return context;
 };
 
 const App: React.FC = () => {
-  const [activeRole, setActiveRole] = useState<UserRole>(UserRole.CUSTOMER);
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(RESTAURANT_DATA);
-  const [drivers, setDrivers] = useState<Driver[]>(DRIVER_DATA);
-  const [customer, setCustomer] = useState<Customer>(CUSTOMER_DATA);
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Simple state machine for order progression
+  // Auth state listener
   useEffect(() => {
-    const interval = setInterval(() => {
-      setOrders(currentOrders => {
-        return currentOrders.map(order => {
-          // This is a simplified auto-progression for demo purposes
-          if (order.status === OrderStatus.PLACED) {
-            return { ...order, status: OrderStatus.PREPARING };
-          }
-          return order;
-        });
-      });
-    }, 7000); // Placed -> Preparing after 7s
+    const unsubscribe = onAuthStateChangedListener(async (userAuth) => {
+      setIsAuthenticating(true);
+      if (userAuth) {
+        const role = await getUserRole(userAuth.uid);
+        setUser(userAuth);
+        setUserRole(role);
+      } else {
+        setUser(null);
+        setUserRole(null);
+      }
+      setIsAuthenticating(false);
+    });
 
-    return () => clearInterval(interval);
+    return () => unsubscribe();
   }, []);
   
+  // Data fetching listener based on user role
+  useEffect(() => {
+    if (!user || !userRole) {
+      setIsLoading(false);
+      // Clear data when user logs out
+      setRestaurants([]);
+      setDrivers([]);
+      setCustomer(null);
+      setOrders([]);
+      return;
+    };
+
+    setIsLoading(true);
+
+    const unsubscribes: (() => void)[] = [];
+
+    const firebaseObjectToArray = (data: any, keyName: string = 'id') => {
+        if (!data) return [];
+        return Object.keys(data).map(key => ({
+            [keyName]: key,
+            ...data[key],
+            reviews: data[key].reviews ? Object.values(data[key].reviews) : [],
+            menu: data[key].menu ? Object.values(data[key].menu) : [],
+            addresses: data[key].addresses ? Object.values(data[key].addresses) : [],
+            driverLedger: data[key].driverLedger || {},
+            restaurantLedger: data[key].restaurantLedger || {},
+            earnings: data[key].earnings || {},
+        }));
+    };
+
+    unsubscribes.push(onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))));
+    unsubscribes.push(onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))));
+    unsubscribes.push(onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))));
+
+    if (userRole === UserRole.CUSTOMER) {
+      unsubscribes.push(onValue(ref(database, `customers/${user.uid}`), (snapshot) => {
+        const customerData = snapshot.val();
+        setCustomer(customerData ? { id: user.uid, ...customerData } : null);
+        setIsLoading(false);
+      }));
+    } else {
+        setCustomer(null); // Not a customer, ensure customer data is cleared
+        setIsLoading(false);
+    }
+    
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [user, userRole]);
+
+
   const addToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -60,259 +113,140 @@ const App: React.FC = () => {
     }, 4000);
   };
 
-  const handlePlaceOrder = (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
-    return new Promise<void>((resolve) => {
-        setTimeout(() => {
-            const restaurant = restaurants.find(r => r.id === orderData.restaurantId);
-            const newOrder: Order = {
-              ...orderData,
-              id: `order-${Date.now()}`,
-              status: OrderStatus.PLACED,
-              deliveryFee: 0, 
-              total: orderData.foodTotal,
-              customerAddress: address,
-              restaurantAddress: restaurant?.address || 'Restaurant Address',
-              isReviewed: false,
-              isRestaurantReviewed: false,
-            };
-            setOrders(prevOrders => [...prevOrders, newOrder]);
-            resolve();
-        }, 1000); // Simulate network delay
-    });
+  const handleLogout = async () => {
+      await signOutUser();
+      // onAuthStateChanged will handle the rest
+  }
+
+  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
+    if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
+    const restaurant = restaurants.find(r => r.id === orderData.restaurantId);
+    const newOrder: Omit<Order, 'id'> = {
+        ...orderData,
+        customerId: customer.id, // Use authenticated customer ID
+        status: OrderStatus.PLACED,
+        deliveryFee: 0,
+        total: orderData.foodTotal,
+        customerAddress: address,
+        restaurantAddress: restaurant?.address || 'N/A',
+        isReviewed: false,
+        isRestaurantReviewed: false,
+    };
+    const newOrderId = await db.createOrder(newOrder as Order);
+    if (newOrderId) await db.updateOrder(newOrderId, { id: newOrderId });
+    addToast('Order placed successfully!', 'success');
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    setOrders(currentOrders =>
-      currentOrders.map(order => {
-        if (order.id !== orderId) {
-          return order;
-        }
-
-        if (order.status === OrderStatus.PENDING_PAYMENT && newStatus === OrderStatus.AWAITING_PICKUP) {
-            const driverId = order.driverId;
-            if(driverId) {
-                const foodTotal = order.foodTotal;
-                setDrivers(prev => prev.map(d => {
-                    if (d.id === driverId) {
-                        return {
-                            ...d,
-                            earnings: { ...d.earnings, [order.id]: order.deliveryFee },
-                            restaurantLedger: { ...d.restaurantLedger, [order.restaurantId]: (d.restaurantLedger[order.restaurantId] || 0) + foodTotal }
-                        };
-                    }
-                    return d;
-                }));
-                setRestaurants(prev => prev.map(r => {
-                    if (r.id === order.restaurantId) {
-                        return {
-                            ...r,
-                            driverLedger: { ...r.driverLedger, [driverId]: (r.driverLedger[driverId] || 0) + foodTotal }
-                        };
-                    }
-                    return r;
-                }));
-            }
-        }
-        
-        return { ...order, status: newStatus };
-      })
-    );
-  };
-
-  const handleAcceptOrder = (orderId: string, driverId: string) => {
-    return new Promise<void>((resolve) => {
-        setTimeout(() => {
-            const driver = drivers.find(d => d.id === driverId);
-            if (!driver) return;
-            
-            const distance = parseFloat((Math.random() * 5 + 1).toFixed(1));
-            const deliveryFee = driver.baseFee + distance * driver.perMileRate;
-
-            setOrders(currentOrders =>
-              currentOrders.map(order => {
-                if (order.id === orderId) {
-                  return { 
-                    ...order, 
-                    driverId: driverId, 
-                    status: OrderStatus.PENDING_PAYMENT,
-                    deliveryFee: deliveryFee,
-                    total: order.foodTotal + deliveryFee
-                  };
-                }
-                return order;
-              })
-            );
-            resolve();
-        }, 1000); // Simulate network delay
-    });
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
+     await db.updateOrder(orderId, { status: newStatus });
   };
   
-  const handleConfirmPayment = (orderId: string) => {
-      updateOrderStatus(orderId, OrderStatus.AWAITING_PICKUP);
-  }
+  const handleAcceptOrder = async (orderId: string, driverId: string) => {
+    const driver = drivers.find(d => d.id === driverId);
+    const order = orders.find(o => o.id === orderId);
+    if (!driver || !order) return;
+    
+    const distance = parseFloat((Math.random() * 5 + 1).toFixed(1));
+    const deliveryFee = driver.baseFee + distance * driver.perMileRate;
+    const total = order.foodTotal + deliveryFee;
 
-  const handleDriverReview = (orderId: string, driverId: string, rating: number, comment: string) => {
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        setDrivers(prevDrivers => prevDrivers.map(driver => {
-          if (driver.id === driverId) {
-            const newReview: Review = {
-              orderId,
-              customerId: customer.id,
-              customerName: customer.name,
-              rating,
-              comment,
-            };
-            const updatedReviews = [...driver.reviews, newReview];
-            const newAverageRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
-            return {
-              ...driver,
-              reviews: updatedReviews,
-              rating: parseFloat(newAverageRating.toFixed(1)),
-            };
-          }
-          return driver;
-        }));
-
-        setOrders(prevOrders => prevOrders.map(order =>
-          order.id === orderId ? { ...order, isReviewed: true } : order
-        ));
-        resolve();
-      }, 1000);
-    });
+    await db.updateOrder(orderId, { driverId, status: OrderStatus.PENDING_PAYMENT, deliveryFee, total });
   };
 
-  const handleRestaurantReview = (orderId: string, restaurantId: string, rating: number, comment: string) => {
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        setRestaurants(prevRestaurants => prevRestaurants.map(restaurant => {
-          if (restaurant.id === restaurantId) {
-            const newReview: Review = {
-              orderId,
-              customerId: customer.id,
-              customerName: customer.name,
-              rating,
-              comment,
-            };
-            const updatedReviews = [...restaurant.reviews, newReview];
-            const newAverageRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
-            return {
-              ...restaurant,
-              reviews: updatedReviews,
-              rating: parseFloat(newAverageRating.toFixed(1)),
-            };
-          }
-          return restaurant;
-        }));
+  const handleConfirmPayment = (orderId: string) => updateOrderStatus(orderId, OrderStatus.AWAITING_PICKUP);
 
-        setOrders(prevOrders => prevOrders.map(order =>
-          order.id === orderId ? { ...order, isRestaurantReviewed: true } : order
-        ));
-        resolve();
-      }, 1000);
-    });
+  const handleDriverReview = async (orderId: string, driverId: string, rating: number, comment: string) => {
+    if (!customer) return;
+    await db.addDriverReview(driverId, { orderId, customerId: customer.id, customerName: customer.name, rating, comment });
+    await db.updateOrder(orderId, { isReviewed: true });
+    
+    const driver = await db.getDriver(driverId);
+    if (driver?.reviews) {
+        const reviews = Object.values(driver.reviews);
+        const newAverageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
+        await db.updateDriver(driverId, { rating: parseFloat(newAverageRating.toFixed(1)) });
+    }
   };
 
-  const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[], originalMenu?: MenuItem[]) => {
-    setRestaurants(prev => prev.map(r => r.id === restaurantId ? {...r, menu: newMenu} : r));
-  }
+  const handleRestaurantReview = async (orderId: string, restaurantId: string, rating: number, comment: string) => {
+    if (!customer) return;
+    await db.addRestaurantReview(restaurantId, { orderId, customerId: customer.id, customerName: customer.name, rating, comment });
+    await db.updateOrder(orderId, { isRestaurantReviewed: true });
 
-  const handleSettleLedger = (restaurantId: string, driverId: string) => {
-      setRestaurants(prev => prev.map(r => {
-          if (r.id === restaurantId) {
-              const newLedger = {...r.driverLedger};
-              delete newLedger[driverId];
-              return {...r, driverLedger: newLedger};
-          }
-          return r;
-      }));
-      setDrivers(prev => prev.map(d => {
-          if (d.id === driverId) {
-              const newLedger = {...d.restaurantLedger};
-              delete newLedger[restaurantId];
-              return {...d, restaurantLedger: newLedger};
-          }
-          return d;
-      }));
-  }
+    const restaurant = await db.getRestaurant(restaurantId);
+    if (restaurant?.reviews) {
+        const reviews = Object.values(restaurant.reviews);
+        const newAverageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
+        await db.updateRestaurant(restaurantId, { rating: parseFloat(newAverageRating.toFixed(1)) });
+    }
+  };
+  
+  const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[]) => db.updateRestaurant(restaurantId, { menu: newMenu });
 
-  const handleUpdateDriver = (updatedDriver: Driver) => {
-      return new Promise<void>(resolve => {
-          setTimeout(() => {
-            setDrivers(prev => prev.map(d => d.id === updatedDriver.id ? updatedDriver : d));
-            resolve();
-          }, 1000);
-      });
+  const handleSettleLedger = async (restaurantId: string, driverId: string) => {
+      const restaurant = await db.getRestaurant(restaurantId);
+      const driver = await db.getDriver(driverId);
+      if(restaurant && driver) {
+          const newRestaurantLedger = {...restaurant.driverLedger};
+          delete newRestaurantLedger[driverId];
+          await db.updateRestaurant(restaurantId, { driverLedger: newRestaurantLedger });
+
+          const newDriverLedger = {...driver.restaurantLedger};
+          delete newDriverLedger[restaurantId];
+          await db.updateDriver(driverId, { restaurantLedger: newDriverLedger });
+      }
   }
   
-  const handleUpdateAddresses = (addresses: Address[], originalAddresses?: Address[]) => {
-      setCustomer(prev => ({...prev, addresses}));
+  const handleUpdateDriver = (updatedDriver: Driver) => db.updateDriver(updatedDriver.id, updatedDriver);
+  
+  const handleUpdateAddresses = (addresses: Address[]) => {
+      if(customer) db.updateCustomer(customer.id, { addresses });
   }
   
   const handleUpdateCustomerProfile = (name: string, phoneNumber: string) => {
-    return new Promise<void>((resolve) => {
-        setTimeout(() => {
-            setCustomer(prev => ({...prev, name, phoneNumber}));
-            resolve();
-        }, 1000);
-    });
+    if(customer) db.updateCustomer(customer.id, { name, phoneNumber });
   }
 
-  const handleUpdateRestaurant = (updatedRestaurant: Restaurant) => {
-    return new Promise<void>((resolve) => {
-        setTimeout(() => {
-            setRestaurants(prev => prev.map(r => r.id === updatedRestaurant.id ? updatedRestaurant : r));
-            resolve();
-        }, 1000);
-    });
-  }
-
+  const handleUpdateRestaurant = (updatedRestaurant: Restaurant) => db.updateRestaurant(updatedRestaurant.id, updatedRestaurant);
 
   const renderView = () => {
-    switch (activeRole) {
+    if (isAuthenticating || (user && isLoading)) {
+      return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+    }
+
+    if (!user) {
+      if (authView === 'login') {
+        return <Login onSignUpClick={() => setAuthView('signup')} />;
+      }
+      return <SignUp onLoginClick={() => setAuthView('login')} />;
+    }
+
+    switch (userRole) {
       case UserRole.CUSTOMER:
-        return <CustomerView 
-                  restaurants={restaurants} 
-                  orders={orders.filter(o => o.customerId === customer.id)} 
-                  drivers={drivers}
-                  customer={customer}
-                  onPlaceOrder={handlePlaceOrder}
-                  onConfirmPayment={handleConfirmPayment}
-                  onUpdateAddresses={handleUpdateAddresses}
-                  onUpdateProfile={handleUpdateCustomerProfile}
-                  onDriverReview={handleDriverReview}
-                  onRestaurantReview={handleRestaurantReview}
-               />;
+        if (!customer) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+        return <CustomerView {...{restaurants, orders: orders.filter(o => o.customerId === user.uid), drivers, customer, onPlaceOrder: handlePlaceOrder, onConfirmPayment: handleConfirmPayment, onUpdateAddresses: handleUpdateAddresses, onUpdateProfile: handleUpdateCustomerProfile, onDriverReview: handleDriverReview, onRestaurantReview: handleRestaurantReview}} />;
+      
       case UserRole.DRIVER:
-        return <DriverView 
-                  drivers={drivers}
-                  orders={orders}
-                  restaurants={restaurants}
-                  customer={customer}
-                  updateOrderStatus={updateOrderStatus}
-                  acceptOrder={handleAcceptOrder}
-                  onUpdateDriver={handleUpdateDriver}
-               />;
+        const currentDriver = drivers.find(d => d.id === user.uid);
+        if(!currentDriver) return <div className="flex justify-center items-center h-screen"><p>Driver profile not found. Please contact support.</p></div>;
+        const driverOrders = orders.filter(o => o.driverId === user.uid || [OrderStatus.PLACED, OrderStatus.PREPARING].includes(o.status));
+        return <DriverView {...{drivers, orders: driverOrders, restaurants, customer: null, updateOrderStatus, acceptOrder: (orderId) => handleAcceptOrder(orderId, user.uid), onUpdateDriver: handleUpdateDriver}} />;
+
       case UserRole.RESTAURANT:
-        const managedRestaurant = restaurants[0];
-        return <RestaurantView 
-                  restaurant={managedRestaurant}
-                  orders={orders.filter(o => o.restaurantId === managedRestaurant.id)}
-                  drivers={drivers}
-                  updateOrderStatus={updateOrderStatus}
-                  updateMenu={(menu, originalMenu) => handleUpdateMenu(managedRestaurant.id, menu, originalMenu)}
-                  settleLedger={(driverId) => handleSettleLedger(managedRestaurant.id, driverId)}
-                  onUpdateRestaurant={handleUpdateRestaurant}
-               />;
+        const managedRestaurant = restaurants.find(r => r.id === user.uid);
+        if (!managedRestaurant) return <div className="flex justify-center items-center h-screen"><p>Restaurant profile not found. Please contact support.</p></div>;
+        return <RestaurantView {...{restaurant: managedRestaurant, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
+      
+      default:
+        return <div className="flex justify-center items-center h-screen"><p>Unrecognized role: {JSON.stringify(userRole)}</p></div>;
     }
   };
 
   return (
     <ToastContext.Provider value={{ addToast }}>
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
-        <Header activeRole={activeRole} setActiveRole={setActiveRole} />
+        <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} />
         <main>{renderView()}</main>
-        {/* Toast Container */}
         <div aria-live="assertive" className="fixed inset-0 flex flex-col items-end px-4 py-6 pointer-events-none sm:p-6 z-[100]">
             <div className="w-full flex flex-col items-center space-y-4 sm:items-end">
                 {toasts.map(toast => (
