@@ -4,7 +4,7 @@ import CustomerView from './components/CustomerView';
 import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
 import { UserRole, Order, Restaurant, Driver, Customer, OrderStatus, MenuItem, Address } from './types';
-import { RESTAURANT_DATA, DRIVER_DATA, CUSTOMER_DATA } from './constants';
+import { RESTAURANT_DATA, DRIVER_DATA, CUSTOMER_DATA } from './constants.ts';
 import Toast from './components/Toast';
 
 // Toast Context for global notifications
