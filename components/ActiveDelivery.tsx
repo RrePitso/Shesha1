@@ -1,5 +1,5 @@
 import React from 'react';
-import { Order, Restaurant, OrderStatus, Customer } from '../types.ts';
+import { Order, Restaurant, OrderStatus, Customer } from '../types';
 
 interface ActiveDeliveryProps {
   order: Order;
