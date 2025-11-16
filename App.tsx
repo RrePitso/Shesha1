@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import Header from './components/Header';
 import CustomerView from './components/CustomerView';
@@ -6,10 +5,11 @@ import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
-import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus } from './types';
+import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod, FeeStructure } from './types';
 import * as db from './services/databaseService';
+import * as updater from './services/updateService';
 import { onAuthStateChangedListener, getUserRole, signOutUser } from './services/authService';
-import { onValue, ref } from 'firebase/database';
+import { onValue, ref, get } from 'firebase/database';
 import { database } from './firebase';
 import Toast from './components/Toast';
 import Spinner from './components/Spinner';
@@ -29,11 +29,12 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
-  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+  const [authView, setAuthView] = useState<'login' | 'signup'>('signup');
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]); // All customers
+  const [customer, setCustomer] = useState<Customer | null>(null); // Logged in customer
   const [orders, setOrders] = useState<Order[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,21 +57,19 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
   
-  // Data fetching listener based on user role
+  // Data fetching listener
   useEffect(() => {
-    if (!user || !userRole) {
+    if (!user) {
       setIsLoading(false);
-      // Clear data when user logs out
       setRestaurants([]);
       setDrivers([]);
+      setCustomers([]);
       setCustomer(null);
       setOrders([]);
       return;
     };
 
     setIsLoading(true);
-
-    const unsubscribes: (() => void)[] = [];
 
     const firebaseObjectToArray = (data: any, keyName: string = 'id') => {
         if (!data) return [];
@@ -83,27 +82,42 @@ const App: React.FC = () => {
             driverLedger: data[key].driverLedger || {},
             restaurantLedger: data[key].restaurantLedger || {},
             earnings: data[key].earnings || {},
+            acceptedPaymentMethods: data[key].acceptedPaymentMethods || [],
+            fees: data[key].fees || {},
         }));
     };
 
-    unsubscribes.push(onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))));
-    unsubscribes.push(onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))));
-    unsubscribes.push(onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))));
+    const unsubscribes: (() => void)[] = [
+        onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
+        onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))),
+        onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))),
+        onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
+    ];
 
     if (userRole === UserRole.CUSTOMER) {
       unsubscribes.push(onValue(ref(database, `customers/${user.uid}`), (snapshot) => {
         const customerData = snapshot.val();
-        setCustomer(customerData ? { id: user.uid, ...customerData } : null);
-        setIsLoading(false);
+        if (customerData) {
+            const addresses = customerData.addresses ? Object.values(customerData.addresses) : [];
+            setCustomer({ id: user.uid, ...customerData, addresses });
+        } else {
+            setCustomer(null);
+        }
       }));
     } else {
-        setCustomer(null); // Not a customer, ensure customer data is cleared
-        setIsLoading(false);
+        setCustomer(null); 
     }
+
+    // Unified loading state management
+    Promise.all([
+        get(ref(database, 'restaurants')),
+        get(ref(database, 'drivers')),
+        get(ref(database, 'orders')),
+        get(ref(database, 'customers')),
+    ]).then(() => setIsLoading(false));
     
     return () => unsubscribes.forEach(unsubscribe => unsubscribe());
   }, [user, userRole]);
-
 
   const addToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now();
@@ -115,7 +129,6 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
       await signOutUser();
-      // onAuthStateChanged will handle the rest
   }
 
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
@@ -123,80 +136,37 @@ const App: React.FC = () => {
     const restaurant = restaurants.find(r => r.id === orderData.restaurantId);
     const newOrder: Omit<Order, 'id'> = {
         ...orderData,
-        customerId: customer.id, // Use authenticated customer ID
-        status: OrderStatus.PLACED,
-        deliveryFee: 0,
-        total: orderData.foodTotal,
+        status: OrderStatus.PENDING_CONFIRMATION,
+        deliveryFee: 0, 
+        total: orderData.foodTotal, 
         customerAddress: address,
         restaurantAddress: restaurant?.address || 'N/A',
-        isReviewed: false,
-        isRestaurantReviewed: false,
     };
-    const newOrderId = await db.createOrder(newOrder as Order);
-    if (newOrderId) await db.updateOrder(newOrderId, { id: newOrderId });
-    addToast('Order placed successfully!', 'success');
+    await db.createOrder(newOrder);
+    addToast('Order placed successfully! Waiting for restaurant confirmation.', 'success');
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
-     await db.updateOrder(orderId, { status: newStatus });
-  };
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (newStatus === OrderStatus.DELIVERED) {
+        if (order.paymentMethod === PaymentMethod.PAYSHAP) {
+            await updater.updateDriverEarningsOnDelivery(orderId);
+        } 
+        else if (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT) {
+            await updater.updateLedgersAndEarningsOnCashDelivery(orderId);
+        }
+    }
+
+    await db.updateOrder(orderId, { status: newStatus });
+ };
   
   const handleAcceptOrder = async (orderId: string, driverId: string) => {
-    const driver = drivers.find(d => d.id === driverId);
-    const order = orders.find(o => o.id === orderId);
-    if (!driver || !order) return;
-    
-    const distance = parseFloat((Math.random() * 5 + 1).toFixed(1));
-    const deliveryFee = driver.baseFee + distance * driver.perMileRate;
-    const total = order.foodTotal + deliveryFee;
-
-    await db.updateOrder(orderId, { driverId, status: OrderStatus.PENDING_PAYMENT, deliveryFee, total });
+    await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
+    addToast('Order assigned to you! Time to pick it up.', 'success');
   };
 
-  const handleConfirmPayment = (orderId: string) => updateOrderStatus(orderId, OrderStatus.AWAITING_PICKUP);
-
-  const handleDriverReview = async (orderId: string, driverId: string, rating: number, comment: string) => {
-    if (!customer) return;
-    await db.addDriverReview(driverId, { orderId, customerId: customer.id, customerName: customer.name, rating, comment });
-    await db.updateOrder(orderId, { isReviewed: true });
-    
-    const driver = await db.getDriver(driverId);
-    if (driver?.reviews) {
-        const reviews = Object.values(driver.reviews);
-        const newAverageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
-        await db.updateDriver(driverId, { rating: parseFloat(newAverageRating.toFixed(1)) });
-    }
-  };
-
-  const handleRestaurantReview = async (orderId: string, restaurantId: string, rating: number, comment: string) => {
-    if (!customer) return;
-    await db.addRestaurantReview(restaurantId, { orderId, customerId: customer.id, customerName: customer.name, rating, comment });
-    await db.updateOrder(orderId, { isRestaurantReviewed: true });
-
-    const restaurant = await db.getRestaurant(restaurantId);
-    if (restaurant?.reviews) {
-        const reviews = Object.values(restaurant.reviews);
-        const newAverageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
-        await db.updateRestaurant(restaurantId, { rating: parseFloat(newAverageRating.toFixed(1)) });
-    }
-  };
-  
-  const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[]) => db.updateRestaurant(restaurantId, { menu: newMenu });
-
-  const handleSettleLedger = async (restaurantId: string, driverId: string) => {
-      const restaurant = await db.getRestaurant(restaurantId);
-      const driver = await db.getDriver(driverId);
-      if(restaurant && driver) {
-          const newRestaurantLedger = {...restaurant.driverLedger};
-          delete newRestaurantLedger[driverId];
-          await db.updateRestaurant(restaurantId, { driverLedger: newRestaurantLedger });
-
-          const newDriverLedger = {...driver.restaurantLedger};
-          delete newDriverLedger[restaurantId];
-          await db.updateDriver(driverId, { restaurantLedger: newDriverLedger });
-      }
-  }
-  
   const handleUpdateDriver = (updatedDriver: Driver) => db.updateDriver(updatedDriver.id, updatedDriver);
   
   const handleUpdateAddresses = (addresses: Address[]) => {
@@ -208,53 +178,86 @@ const App: React.FC = () => {
   }
 
   const handleUpdateRestaurant = (updatedRestaurant: Restaurant) => db.updateRestaurant(updatedRestaurant.id, updatedRestaurant);
+  
+  const handleDriverReview = async (orderId: string, driverId: string, rating: number, comment: string) => {
+    if (!customer) return;
+    await db.addDriverReview(driverId, {
+      orderId, 
+      customerId: customer.id, 
+      customerName: customer.name, 
+      rating, 
+      comment,
+      reviewer: 'customer',
+      reviewee: 'driver',
+      revieweeId: driverId,
+    });
+    await db.updateOrder(orderId, { isDriverReviewed: true });
+    await updater.recalculateDriverRating(driverId);
+  };
+
+  const handleRestaurantReview = async (orderId: string, restaurantId: string, rating: number, comment: string) => {
+    if (!customer) return;
+    await db.addRestaurantReview(restaurantId, {
+      orderId, 
+      customerId: customer.id, 
+      customerName: customer.name, 
+      rating, 
+      comment,
+      reviewer: 'customer',
+      reviewee: 'restaurant',
+      revieweeId: restaurantId,
+    });
+    await db.updateOrder(orderId, { isRestaurantReviewed: true });
+    await updater.recalculateRestaurantRating(restaurantId);
+  };
+  
+  const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[]) => db.updateRestaurant(restaurantId, { menu: newMenu });
+
+  const handleSettleLedger = async (restaurantId: string, driverId: string) => {
+    await updater.settleLedger(restaurantId, driverId);
+  }
+
 
   const renderView = () => {
-    if (isAuthenticating || (user && isLoading)) {
+    if (isAuthenticating || isLoading) {
       return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
     }
 
     if (!user) {
-      if (authView === 'login') {
-        return <Login onSignUpClick={() => setAuthView('signup')} />;
-      }
-      return <SignUp onLoginClick={() => setAuthView('login')} />;
+      return authView === 'login' ? <Login onSignUpClick={() => setAuthView('signup')} /> : <SignUp onLoginClick={() => setAuthView('login')} />;
     }
 
     switch (userRole) {
       case UserRole.CUSTOMER:
         if (!customer) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        return <CustomerView {...{restaurants, orders: orders.filter(o => o.customerId === user.uid), drivers, customer, onPlaceOrder: handlePlaceOrder, onConfirmPayment: handleConfirmPayment, onUpdateAddresses: handleUpdateAddresses, onUpdateProfile: handleUpdateCustomerProfile, onDriverReview: handleDriverReview, onRestaurantReview: handleRestaurantReview}} />;
+        return <CustomerView {...{restaurants, orders: orders.filter(o => o.customerId === user.uid), drivers, customer, onPlaceOrder: handlePlaceOrder, onUpdateAddresses: handleUpdateAddresses, onUpdateProfile: handleUpdateCustomerProfile, onDriverReview: handleDriverReview, onRestaurantReview: handleRestaurantReview}} />;
       
       case UserRole.DRIVER:
         const currentDriver = drivers.find(d => d.id === user.uid);
-        if(!currentDriver) return <div className="flex justify-center items-center h-screen"><p>Driver profile not found. Please contact support.</p></div>;
-        const driverOrders = orders.filter(o => o.driverId === user.uid || [OrderStatus.PLACED, OrderStatus.PREPARING].includes(o.status));
-        return <DriverView {...{drivers, orders: driverOrders, restaurants, customer: null, updateOrderStatus, acceptOrder: (orderId) => handleAcceptOrder(orderId, user.uid), onUpdateDriver: handleUpdateDriver}} />;
+        if (!currentDriver) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+        return <DriverView {...{driver: currentDriver, orders, restaurants, customers, updateOrderStatus, acceptOrder: handleAcceptOrder, onUpdateDriver: handleUpdateDriver}} />;
 
       case UserRole.RESTAURANT:
         const managedRestaurant = restaurants.find(r => r.id === user.uid);
-        if (!managedRestaurant) return <div className="flex justify-center items-center h-screen"><p>Restaurant profile not found. Please contact support.</p></div>;
+        if (!managedRestaurant) return <div className="flex justify-center items-center h-screen"><p>Restaurant not found.</p></div>;
         return <RestaurantView {...{restaurant: managedRestaurant, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
       
       default:
-        return <div className="flex justify-center items-center h-screen"><p>Unrecognized role: {JSON.stringify(userRole)}</p></div>;
+        return <div className="flex justify-center items-center h-screen"><p>Unrecognized role.</p></div>;
     }
   };
 
   return (
     <ToastContext.Provider value={{ addToast }}>
-        <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
+      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
         <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} />
         <main>{renderView()}</main>
         <div aria-live="assertive" className="fixed inset-0 flex flex-col items-end px-4 py-6 pointer-events-none sm:p-6 z-[100]">
-            <div className="w-full flex flex-col items-center space-y-4 sm:items-end">
-                {toasts.map(toast => (
-                    <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToasts(p => p.filter(t => t.id !== toast.id))} />
-                ))}
-            </div>
+          {toasts.map(toast => (
+              <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToasts(p => p.filter(t => t.id !== toast.id))} />
+          ))}
         </div>
-        </div>
+      </div>
     </ToastContext.Provider>
   );
 };

@@ -8,11 +8,11 @@ const SignUp = ({ onLoginClick }) => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.CUSTOMER);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // State for all potential fields to ensure consistency
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [addressDetails, setAddressDetails] = useState('');
+  const [address, setAddress] = useState('');
   const [cuisine, setCuisine] = useState('');
   const [restaurantAddress, setRestaurantAddress] = useState('');
   const [vehicle, setVehicle] = useState('');
@@ -20,133 +20,152 @@ const SignUp = ({ onLoginClick }) => {
   const handleSignUp = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const profileData = {
         name,
+        email,
         ...(role === UserRole.CUSTOMER && { 
             phoneNumber, 
-            addressDetails 
+            addresses: [
+              { id: 'default', label: 'Home', details: address, isDefault: true }
+            ]
         }),
         ...(role === UserRole.RESTAURANT && { 
             cuisine, 
-            address: restaurantAddress 
+            address: restaurantAddress,
+            rating: { average: 0, count: 0 },
+            menu: [],
         }),
-        ...(role === UserRole.DRIVER && { vehicle }),
+        ...(role === UserRole.DRIVER && { 
+            vehicle,
+            isAvailable: true,
+            rating: { average: 0, count: 0 },
+        }),
       };
 
       await signUpWithEmailPassword(email, password, role, profileData);
-      
-      // Reset form on success
-      setEmail('');
-      setPassword('');
-      setRole(UserRole.CUSTOMER);
-      setName('');
-      setPhoneNumber('');
-      setAddressDetails('');
-      setCuisine('');
-      setRestaurantAddress('');
-      setVehicle('');
 
     } catch (err) {
-      setError(err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('This email address is already in use. Please try another email or log in.');
+      } else {
+        const friendlyMessage = err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)/, '').trim();
+        setError(friendlyMessage || 'An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderRoleFields = () => {
+    switch (role) {
+      case UserRole.CUSTOMER:
+        return (
+          <>
+            <InputField id="phone" type="tel" placeholder="Phone Number" value={phoneNumber} onChange={setPhoneNumber} required />
+            <InputField id="address" type="text" placeholder="Primary Address" value={address} onChange={setAddress} required />
+          </>
+        );
+      case UserRole.RESTAURANT:
+        return (
+          <>
+            <InputField id="cuisine" type="text" placeholder="Cuisine Type (e.g., Italian)" value={cuisine} onChange={setCuisine} required />
+            <InputField id="restaurantAddress" type="text" placeholder="Restaurant Address" value={restaurantAddress} onChange={setRestaurantAddress} required />
+          </>
+        );
+      case UserRole.DRIVER:
+        return (
+          <>
+            <InputField id="vehicle" type="text" placeholder="Vehicle (e.g., Toyota Camry)" value={vehicle} onChange={setVehicle} required />
+          </>
+        );
+      default: return null;
     }
   };
 
   return (
-    <div>
-      <h2>Sign Up</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleSignUp}>
-        {/* Common Fields */}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        
-        {/* Role Selector */}
-        <select value={role} onChange={(e) => setRole(e.target.value as UserRole)} required>
-          <option value={UserRole.CUSTOMER}>Customer</option>
-          <option value={UserRole.DRIVER}>Driver</option>
-          <option value={UserRole.RESTAURANT}>Restaurant</option>
-        </select>
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 bg-gray-100 dark:bg-gray-900 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div>
+          <h2 className="text-3xl font-extrabold text-center text-gray-900 dark:text-white">
+            Create a new account
+          </h2>
+        </div>
 
-        {/* Dynamic Fields */}
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
+        <form onSubmit={handleSignUp} className="mt-8 space-y-6">
+          <div className="space-y-4 rounded-md shadow-sm">
+            <InputField id="name" type="text" placeholder="Full Name" value={name} onChange={setName} required />
+            <InputField id="email" type="email" placeholder="Email address" value={email} onChange={setEmail} required />
+            <InputField id="password" type="password" placeholder="Password" value={password} onChange={setPassword} required />
 
-        {/* Customer-Specific Fields */}
-        {role === UserRole.CUSTOMER && (
-          <>
-            <input
-              type="tel"
-              placeholder="Phone Number"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Primary Address (e.g., 123 Main St, Anytown)"
-              value={addressDetails}
-              onChange={(e) => setAddressDetails(e.target.value)}
-              required
-            />
-          </>
-        )}
+            <div className="relative">
+                <select 
+                    id="role"
+                    value={role} 
+                    onChange={(e) => setRole(e.target.value as UserRole)} 
+                    required
+                    className="block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                >
+                    <option value={UserRole.CUSTOMER}>Sign up as a Customer</option>
+                    <option value={UserRole.DRIVER}>Sign up as a Driver</option>
+                    <option value={UserRole.RESTAURANT}>Sign up as a Restaurant</option>
+                </select>
+            </div>
 
-        {/* Restaurant-Specific Fields */}
-        {role === UserRole.RESTAURANT && (
-          <>
-            <input
-              type="text"
-              placeholder="Cuisine Type"
-              value={cuisine}
-              onChange={(e) => setCuisine(e.target.value)}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Restaurant Address"
-              value={restaurantAddress}
-              onChange={(e) => setRestaurantAddress(e.target.value)}
-              required
-            />
-          </>
-        )}
+            <div className="py-2 border-t border-gray-200 dark:border-gray-700"></div>
 
-        {/* Driver-Specific Fields */}
-        {role === UserRole.DRIVER && (
-          <input
-            type="text"
-            placeholder="Vehicle (e.g., 'Toyota Camry')"
-            value={vehicle}
-            onChange={(e) => setVehicle(e.target.value)}
-            required
-          />
-        )}
+            {renderRoleFields()}
+          </div>
 
-        <button type="submit">Sign Up</button>
-      </form>
-      <p>
-        Already have an account? <button onClick={onLoginClick}>Login</button>
-      </p>
+          {error && <p className="mt-2 text-sm text-center text-red-600">{error}</p>}
+
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md group hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Creating account...' : 'Sign Up'}
+            </button>
+          </div>
+        </form>
+
+        <p className="mt-6 text-sm text-center">
+          <span className="text-gray-600 dark:text-gray-400">
+            Already have an account?{' '}
+          </span>
+          <button onClick={onLoginClick} className="font-medium text-indigo-600 hover:text-indigo-500">
+            Login
+          </button>
+        </p>
+      </div>
     </div>
   );
 };
+
+const InputField = ({ id, type, placeholder, value, onChange, required = false }) => (
+    <div>
+        <label htmlFor={id} className="sr-only">{placeholder}</label>
+        <input
+            id={id}
+            name={id}
+            type={type}
+            autoComplete={id}
+            required={required}
+            className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+        />
+    </div>
+);
 
 export default SignUp;

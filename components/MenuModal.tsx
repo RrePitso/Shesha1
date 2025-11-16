@@ -75,20 +75,37 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
           <div className="md:col-span-1">
             <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Menu</h3>
             <div className="space-y-4">
-              {restaurant.menu.map(item => (
-                <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{item.description}</p>
-                    <p className="text-md font-bold text-indigo-600 dark:text-indigo-400 mt-1">R{item.price.toFixed(2)}</p>
+              {restaurant.menu.map(item => {
+                const isAvailable = item.isAvailable ?? true;
+                return (
+                  <div 
+                    key={item.id} 
+                    className={`flex justify-between items-center p-3 rounded-md ${isAvailable ? 'bg-gray-50 dark:bg-gray-700' : 'bg-gray-200 dark:bg-gray-700/50'}`}
+                  >
+                    <div className={!isAvailable ? 'opacity-50' : ''}>
+                      <p className={`font-semibold text-gray-900 dark:text-white ${!isAvailable ? 'line-through' : ''}`}>{item.name}</p>
+                      <p className={`text-sm text-gray-500 dark:text-gray-400 ${!isAvailable ? 'line-through' : ''}`}>{item.description}</p>
+                      <p className={`text-md font-bold text-indigo-600 dark:text-indigo-400 mt-1 ${!isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
+                    </div>
+                    <button 
+                      onClick={() => isAvailable && addToCart(item)} 
+                      disabled={!isAvailable}
+                      className={`p-2 rounded-full transition-transform active:scale-90 ${isAvailable ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'}`}
+                      title={!isAvailable ? 'Currently unavailable' : 'Add to cart'}
+                    >
+                      {isAvailable ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
-                  <button onClick={() => addToCart(item)} className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 p-2 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-transform active:scale-90">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
           

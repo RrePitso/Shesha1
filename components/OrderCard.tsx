@@ -7,8 +7,9 @@ interface OrderCardProps {
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, updateOrderStatus }) => {
-  const canBePrepared = order.status === OrderStatus.PLACED;
-  const canBeReady = order.status === OrderStatus.PREPARING;
+  const canBeAccepted = order.status === OrderStatus.PENDING_CONFIRMATION;
+  const canBeReady = order.status === OrderStatus.ACCEPTED_BY_RESTAURANT;
+  const canBeAssigned = order.status === OrderStatus.PENDING_DRIVER_ASSIGNMENT;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex flex-col justify-between">
@@ -21,8 +22,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, updateOrderStatus }) => {
           <ul className="space-y-1">
             {order.items.map(item => (
               <li key={item.id} className="flex justify-between text-gray-700 dark:text-gray-300">
-                <span>{item.name}</span>
-                <span className="font-mono">R{item.price.toFixed(2)}</span>
+                <span>{item.name} x {item.quantity || 1}</span>
+                <span className="font-mono">R{(item.price * (item.quantity || 1)).toFixed(2)}</span>
               </li>
             ))}
           </ul>
@@ -32,21 +33,29 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, updateOrderStatus }) => {
         </div>
       </div>
       <div className="mt-6 flex space-x-2">
-        {canBePrepared && (
+        {canBeAccepted && (
           <button
-            onClick={() => updateOrderStatus(order.id, OrderStatus.PREPARING)}
+            onClick={() => updateOrderStatus(order.id, OrderStatus.ACCEPTED_BY_RESTAURANT)}
             className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
           >
-            Start Preparing
+            Accept Order
           </button>
         )}
         {canBeReady && (
           <button
-            onClick={() => updateOrderStatus(order.id, OrderStatus.READY_FOR_PICKUP)}
+            onClick={() => updateOrderStatus(order.id, OrderStatus.PENDING_DRIVER_ASSIGNMENT)}
             className="flex-1 bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
           >
-            Ready for Pickup
+            Mark as Ready for Pickup
           </button>
+        )}
+        {canBeAssigned && (
+            <button
+                disabled
+                className="flex-1 bg-gray-400 text-white py-2 px-4 rounded-md cursor-not-allowed"
+            >
+                Waiting for Driver Assignment
+            </button>
         )}
       </div>
     </div>

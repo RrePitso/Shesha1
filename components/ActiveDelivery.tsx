@@ -1,5 +1,6 @@
 import React from 'react';
-import { Order, Restaurant, OrderStatus, Customer } from '../types';
+import { Order, Restaurant, OrderStatus, Customer, PaymentMethod } from '../types';
+import { updateLedgersOnPaymentConfirmation } from '../services/updateService';
 
 interface ActiveDeliveryProps {
   order: Order;
@@ -11,51 +12,54 @@ interface ActiveDeliveryProps {
 const ActiveDelivery: React.FC<ActiveDeliveryProps> = ({ order, restaurant, customer, updateOrderStatus }) => {
   if (!restaurant) return <div>Loading restaurant details...</div>;
 
-  const handlePickUp = () => {
-    updateOrderStatus(order.id, OrderStatus.PICKED_UP);
+  const handleUpdateStatus = (status: OrderStatus) => {
+    updateOrderStatus(order.id, status);
   };
-  
-  const handleDeliver = () => {
-    updateOrderStatus(order.id, OrderStatus.DELIVERED);
+
+  const handleAcknowledgePayshap = async () => {
+    await updateLedgersOnPaymentConfirmation(order.id);
+    updateOrderStatus(order.id, OrderStatus.AT_RESTAURANT);
   };
-  
-  const canBePickedUp = order.status === OrderStatus.AWAITING_PICKUP;
-  const canBeDelivered = order.status === OrderStatus.PICKED_UP;
 
   const getButton = () => {
-    if (canBePickedUp) {
-      return (
-        <button
-          onClick={handlePickUp}
-          className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors font-bold text-lg"
-        >
-          Mark as Picked Up
-        </button>
-      );
+    // For orders paid with CASH or SPEEDPOINT
+    if (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT) {
+        switch (order.status) {
+            case OrderStatus.DRIVER_ASSIGNED:
+                return <button onClick={() => handleUpdateStatus(OrderStatus.AT_RESTAURANT)} className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 font-bold text-lg">Mark as Arrived at Restaurant</button>;
+            case OrderStatus.AT_RESTAURANT:
+                return <button onClick={() => handleUpdateStatus(OrderStatus.IN_TRANSIT)} className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 font-bold text-lg">Mark as Picked Up & En Route</button>;
+            case OrderStatus.IN_TRANSIT:
+                return <button onClick={() => handleUpdateStatus(OrderStatus.AT_DROPOFF)} className="w-full bg-yellow-500 text-white py-3 px-4 rounded-md hover:bg-yellow-600 font-bold text-lg">Mark as Arrived at Dropoff</button>;
+            case OrderStatus.AT_DROPOFF:
+                return <button onClick={() => handleUpdateStatus(OrderStatus.DELIVERED)} className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 font-bold text-lg">Confirm Payment & Complete</button>;
+            default:
+                return <button disabled className="w-full bg-gray-400 text-white py-3 px-4 rounded-md font-bold text-lg">No Action Required</button>;
+        }
     }
-    if (canBeDelivered) {
-      return (
-        <button
-          onClick={handleDeliver}
-          className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors font-bold text-lg"
-        >
-          Mark as Delivered
-        </button>
-      );
-    }
-    
-    let buttonText = 'No Action Required';
-    if(order.status === OrderStatus.PENDING_PAYMENT) buttonText = 'Waiting for Customer Payment';
-    if(order.status === OrderStatus.PREPARING || order.status === OrderStatus.READY_FOR_PICKUP) buttonText = 'Waiting for Restaurant';
 
-    return (
-      <button
-        disabled
-        className="w-full bg-gray-400 text-white py-3 px-4 rounded-md cursor-not-allowed font-bold text-lg"
-      >
-        {buttonText}
-      </button>
-    );
+    // For orders paid with PAYSHAP
+    if (order.paymentMethod === PaymentMethod.PAYSHAP) {
+        switch (order.status) {
+            case OrderStatus.AWAITING_DRIVER_CONFIRMATION:
+                return <button onClick={handleAcknowledgePayshap} className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 font-bold text-lg">Acknowledge Payment & Proceed</button>;
+            case OrderStatus.AT_RESTAURANT:
+                return <button onClick={() => handleUpdateStatus(OrderStatus.IN_TRANSIT)} className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 font-bold text-lg">Mark as Picked Up & En Route</button>;
+            case OrderStatus.IN_TRANSIT:
+                 return <button onClick={() => handleUpdateStatus(OrderStatus.DELIVERED)} className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 font-bold text-lg">Complete Delivery</button>;
+            default:
+                let buttonText = 'No Action Required';
+                if (order.status === OrderStatus.PENDING_PAYMENT) buttonText = 'Waiting for Customer to Pay';
+                return <button disabled className="w-full bg-gray-400 text-white py-3 px-4 rounded-md font-bold text-lg">{buttonText}</button>;
+        }
+    }
+
+    // Default state if payment method is not yet selected
+    if (!order.paymentMethod && order.status === OrderStatus.DRIVER_ASSIGNED) {
+        return <button disabled className="w-full bg-gray-400 text-white py-3 px-4 rounded-md font-bold text-lg">Waiting for Customer to Choose Payment</button>;
+    }
+
+    return <button disabled className="w-full bg-gray-400 text-white py-3 px-4 rounded-md font-bold text-lg">No Action Required</button>;
   };
 
   return (
@@ -95,6 +99,13 @@ const ActiveDelivery: React.FC<ActiveDeliveryProps> = ({ order, restaurant, cust
                )}
            </div>
         </div>
+
+        {order.paymentMethod && (
+            <div className="text-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <p className="font-semibold text-gray-800 dark:text-gray-200 text-lg">Payment Method: <span className="font-bold">{order.paymentMethod}</span></p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200 text-lg">Total: <span className="font-bold">R{order.total?.toFixed(2)}</span></p>
+            </div>
+        )}
       </div>
       
       <div className="mt-8">

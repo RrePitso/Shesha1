@@ -1,14 +1,16 @@
+
 import React, { useState } from 'react';
-import { Restaurant, Order, Driver, Customer, MenuItem, Address, OrderStatus } from '../types';
+import { Restaurant, Order, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod } from '../types';
 import RestaurantCard from './RestaurantCard';
 import MenuModal from './MenuModal';
 import OrderStatusTracker from './OrderStatus';
-import PaymentModal from './PaymentModal';
+import NewPaymentModal from './NewPaymentModal';
 import CustomerProfileModal from './CustomerProfileModal';
 import ConfirmOrderModal from './ConfirmOrderModal';
 import { useToast } from '../App';
 import RatingModal from './RatingModal';
 import RestaurantRatingModal from './RestaurantRatingModal';
+import { updateOrder } from '../services/databaseService';
 
 interface CustomerViewProps {
   restaurants: Restaurant[];
@@ -16,7 +18,6 @@ interface CustomerViewProps {
   drivers: Driver[];
   customer: Customer;
   onPlaceOrder: (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => Promise<void>;
-  onConfirmPayment: (orderId: string) => void;
   onUpdateAddresses: (addresses: Address[], originalAddresses?: Address[]) => void;
   onUpdateProfile: (name: string, phoneNumber: string) => Promise<void>;
   onDriverReview: (orderId: string, driverId: string, rating: number, comment: string) => Promise<void>;
@@ -29,7 +30,17 @@ interface OrderConfirmationData {
     foodTotal: number;
 }
 
-const CustomerView: React.FC<CustomerViewProps> = ({ restaurants, orders, drivers, customer, onPlaceOrder, onConfirmPayment, onUpdateAddresses, onUpdateProfile, onDriverReview, onRestaurantReview }) => {
+const CustomerView: React.FC<CustomerViewProps> = ({ 
+    restaurants, 
+    orders, 
+    drivers, 
+    customer, 
+    onPlaceOrder, 
+    onUpdateAddresses, 
+    onUpdateProfile, 
+    onDriverReview, 
+    onRestaurantReview 
+}) => {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -56,7 +67,6 @@ const CustomerView: React.FC<CustomerViewProps> = ({ restaurants, orders, driver
   const handleConfirmOrder = async (address: string) => {
     if (orderToConfirm) {
         const restaurant = restaurants.find(r => r.id === orderToConfirm.restaurant.id);
-        // FIX: Added missing `customerAddress` property to satisfy the type required by onPlaceOrder.
         const newOrderData = {
             restaurantId: orderToConfirm.restaurant.id,
             customerId: customer.id,
@@ -66,17 +76,36 @@ const CustomerView: React.FC<CustomerViewProps> = ({ restaurants, orders, driver
             customerAddress: address,
         };
         await onPlaceOrder(newOrderData, address);
-        addToast('Order placed successfully!', 'success');
     }
     setOrderToConfirm(null);
   }
 
-  const handlePaymentSuccess = () => {
-    if (paymentOrder) {
-      onConfirmPayment(paymentOrder.id);
-      addToast('Payment confirmed!', 'success');
+  const handlePaymentConfirm = async (orderId: string, paymentMethod: PaymentMethod, deliveryFee: number, total: number) => {
+    const status = paymentMethod === PaymentMethod.PAYSHAP 
+        ? OrderStatus.PENDING_PAYMENT 
+        : OrderStatus.DRIVER_ASSIGNED;
+    
+    try {
+        await updateOrder(orderId, { 
+            paymentMethod, 
+            status,
+            deliveryFee,
+            total
+        });
+        setPaymentOrder(null);
+        addToast('Payment method confirmed!', 'success');
+    } catch (error) {
+        addToast('Failed to confirm payment method.', 'error');
     }
-    setPaymentOrder(null);
+  };
+
+  const handleCustomerPayshapConfirmation = async (orderId: string) => {
+      try {
+          await updateOrder(orderId, { status: OrderStatus.AWAITING_DRIVER_CONFIRMATION });
+          addToast('Payment confirmation sent to driver!', 'success');
+      } catch (error) {
+          addToast('Failed to confirm payment.', 'error');
+      }
   };
 
   const handleProfileUpdate = async (name: string, phoneNumber: string) => {
@@ -111,12 +140,15 @@ const CustomerView: React.FC<CustomerViewProps> = ({ restaurants, orders, driver
               <div className="space-y-6">
                 {activeOrders.map(order => {
                     const restaurant = restaurants.find(r => r.id === order.restaurantId);
+                    const driver = drivers.find(d => d.id === order.driverId);
                     return (
                         <OrderStatusTracker 
                             key={order.id} 
                             order={order} 
                             restaurantName={restaurant?.name || 'Restaurant'} 
                             onPayNow={setPaymentOrder}
+                            driver={driver}
+                            onConfirmPayshapPayment={handleCustomerPayshapConfirmation}
                         />
                     )
                 })}
@@ -136,7 +168,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ restaurants, orders, driver
                             key={order.id} 
                             order={order} 
                             restaurantName={restaurant?.name || 'Restaurant'} 
-                            onPayNow={() => {}}
+                            onPayNow={() => {}} // No pay now for completed
                             onRateDriver={setRatingOrder}
                             onRateRestaurant={setRatingRestaurantOrder}
                         />
@@ -177,17 +209,18 @@ const CustomerView: React.FC<CustomerViewProps> = ({ restaurants, orders, driver
       {orderToConfirm && (
           <ConfirmOrderModal 
             customer={customer}
+            orderData={orderToConfirm}
             onConfirm={handleConfirmOrder}
             onClose={() => setOrderToConfirm(null)}
           />
       )}
 
       {paymentOrder && paymentOrderDriver && (
-        <PaymentModal
+        <NewPaymentModal
           order={paymentOrder}
           driver={paymentOrderDriver}
           onClose={() => setPaymentOrder(null)}
-          onPaymentSuccess={handlePaymentSuccess}
+          onConfirmPayment={handlePaymentConfirm}
         />
       )}
 

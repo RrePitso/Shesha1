@@ -12,8 +12,8 @@ interface RestaurantViewProps {
   restaurant: Restaurant;
   drivers: Driver[];
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  updateMenu: (menu: MenuItem[], originalMenu?: MenuItem[]) => void;
-  settleLedger: (driverId: string) => void;
+  updateMenu: (menu: MenuItem[]) => void;
+  settleLedger: (driverId: string) => Promise<void>;
   onUpdateRestaurant: (restaurant: Restaurant) => Promise<void>;
 }
 
@@ -32,6 +32,17 @@ const StarDisplay: React.FC<{ rating: number }> = ({ rating }) => (
     </div>
 );
 
+const ToggleSwitch: React.FC<{ isAvailable: boolean; onToggle: () => void }> = ({ isAvailable, onToggle }) => (
+    <button
+        onClick={onToggle}
+        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 ${isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+    >
+        <span className="sr-only">Toggle Availability</span>
+        <span
+            className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ${isAvailable ? 'translate-x-6' : 'translate-x-1'}`}
+        />
+    </button>
+);
 
 const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, drivers, updateOrderStatus, updateMenu, settleLedger, onUpdateRestaurant }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -53,6 +64,16 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
         setShowOnboarding(false);
     };
 
+    const handleSettle = async (driverId: string) => {
+        try {
+            await settleLedger(driverId);
+            addToast('Ledger settled successfully!', 'success');
+        } catch (error) {
+            console.error("Failed to settle ledger:", error);
+            addToast('Error settling ledger. Please check permissions.', 'error');
+        }
+    };
+
     const activeOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED);
     const completedOrders = orders.filter(o => o.status === OrderStatus.DELIVERED);
 
@@ -68,12 +89,21 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
         if ('id' in itemData) { // Editing existing item
             newMenu = restaurant.menu.map(item => item.id === itemData.id ? itemData : item);
         } else { // Adding new item
-            const newItem: MenuItem = { ...itemData, id: `menu-${Date.now()}` };
+            const newItem: MenuItem = { ...itemData, id: `menu-${Date.now()}`, isAvailable: true };
             newMenu = [...restaurant.menu, newItem];
         }
         updateMenu(newMenu);
         addToast(`Menu item ${'id' in itemData ? 'updated' : 'added'}!`, 'success');
         setIsEditModalOpen(false);
+    };
+    
+    const handleToggleAvailability = (itemId: string) => {
+        const newMenu = restaurant.menu.map(item => 
+            item.id === itemId ? { ...item, isAvailable: !item.isAvailable } : item
+        );
+        updateMenu(newMenu);
+        const availabilityStatus = !restaurant.menu.find(i => i.id === itemId)?.isAvailable;
+        addToast(`Item marked as ${availabilityStatus ? 'available' : 'unavailable'}.`, 'success');
     };
 
     const handleAddGeneratedItem = (generatedItem: GeneratedMenuItem) => {
@@ -91,15 +121,9 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
     };
 
     const handleDeleteItem = (itemId: string) => {
-        // Optimistic UI update
-        const originalMenu = [...restaurant.menu];
         const newMenu = restaurant.menu.filter(item => item.id !== itemId);
         updateMenu(newMenu);
         addToast('Menu item deleted.', 'success');
-        
-        // Here you would make an API call. If it fails, revert the change.
-        // For demonstration, we'll assume it succeeds.
-        // To simulate failure: updateMenu(originalMenu); addToast('Failed to delete.', 'error');
     }
     
     const handleUpdateRestaurantProfile = async (restaurant: Restaurant) => {
@@ -197,7 +221,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
                                 <div className="flex items-center space-x-4">
                                     <p className="font-mono text-lg text-red-600 dark:text-red-400">R{(amount as number).toFixed(2)}</p>
                                     <button 
-                                        onClick={() => { settleLedger(driverId); addToast('Ledger settled!', 'success'); }}
+                                        onClick={() => handleSettle(driverId)}
                                         className="bg-green-500 text-white py-1 px-3 rounded-md hover:bg-green-600 text-sm font-semibold transition-transform active:scale-95"
                                     >
                                         Settle
@@ -229,11 +253,12 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
                 {restaurant.menu.map(item => (
                     <li key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{item.description}</p>
+                            <p className={`font-semibold text-gray-900 dark:text-white ${!item.isAvailable ? 'line-through text-gray-500' : ''}`}>{item.name}</p>
+                            <p className={`text-sm text-gray-600 dark:text-gray-400 ${!item.isAvailable ? 'line-through' : ''}`}>{item.description}</p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                             <p className="font-semibold text-gray-800 dark:text-gray-200 w-20 text-right">R{item.price.toFixed(2)}</p>
+                        <div className="flex items-center space-x-4">
+                             <p className={`font-semibold text-gray-800 dark:text-gray-200 w-20 text-right ${!item.isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
+                             <ToggleSwitch isAvailable={item.isAvailable ?? true} onToggle={() => handleToggleAvailability(item.id)} />
                             <button onClick={() => openEditModal(item)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 p-1 transition-transform active:scale-90">Edit</button>
                             <button onClick={() => handleDeleteItem(item.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 transition-transform active:scale-90">Delete</button>
                         </div>

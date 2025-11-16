@@ -2,8 +2,6 @@
 import React, { useState } from 'react';
 import {
   signInWithEmail,
-  signInWithGoogle,
-  signInWithApple,
 } from '../services/authService';
 
 const Login = ({ onSignUpClick }) => {
@@ -13,57 +11,76 @@ const Login = ({ onSignUpClick }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       await signInWithEmail(email, password);
-      // On successful login, the onAuthStateChanged listener in App.tsx
-      // will handle the user redirection.
     } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    try {
-      await signInWithApple();
-    } catch (err) {
-      setError(err.message);
+      setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)/, ''));
     }
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Login</button>
-      </form>
-      <button onClick={handleGoogleSignIn}>Sign in with Google</button>
-      <button onClick={handleAppleSignIn}>Sign in with Apple</button>
-      <p>
-        Don't have an account? <button onClick={onSignUpClick}>Sign Up</button>
-      </p>
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 bg-gray-100 dark:bg-gray-900 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div>
+          <h2 className="text-3xl font-extrabold text-center text-gray-900 dark:text-white">
+            Login to your account
+          </h2>
+        </div>
+
+        <form onSubmit={handleLogin} className="mt-8 space-y-6">
+          <div className="-space-y-px rounded-md shadow-sm">
+            <div>
+              <label htmlFor="email-address" className="sr-only">Email address</label>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {error && <p className="mt-2 text-sm text-center text-red-600">{error}</p>}
+
+          <div>
+            <button
+              type="submit"
+              className="relative flex justify-center w-full px-4 py-2 mt-6 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md group hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Login
+            </button>
+          </div>
+        </form>
+
+        <p className="mt-6 text-sm text-center">
+          <span className="text-gray-600 dark:text-gray-400">
+            Don't have an account?{' '}
+          </span>
+          <button onClick={onSignUpClick} className="font-medium text-indigo-600 hover:text-indigo-500">
+            Sign Up
+          </button>
+        </p>
+      </div>
     </div>
   );
 };

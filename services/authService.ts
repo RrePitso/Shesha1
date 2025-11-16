@@ -1,13 +1,10 @@
 
 import {
   auth,
-  googleProvider,
-  appleProvider,
 } from '../firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -16,8 +13,8 @@ import { database } from '../firebase';
 import { UserRole, Customer, Driver, Restaurant } from '../types';
 
 // Helper to find enum value from a string, ignoring case.
-const getRoleEnumFromString = (roleString) => {
-  if (!roleString) return null;
+const getRoleEnumFromString = (roleString: any) => {
+  if (typeof roleString !== 'string') return null;
   return Object.values(UserRole).find(v => v.toLowerCase() === roleString.toLowerCase()) || null;
 }
 
@@ -56,7 +53,7 @@ export const signUpWithEmailPassword = async (email, password, role, profileData
           [newAddressId]: {
             id: newAddressId,
             label: 'Home', // Assign a default label
-            details: profileData.addressDetails,
+            details: profileData.address,
             isDefault: true,
           }
         }
@@ -68,12 +65,12 @@ export const signUpWithEmailPassword = async (email, password, role, profileData
         name: profileData.name || 'New Driver',
         vehicle: profileData.vehicle || 'Default Vehicle',
         rating: 0,
-        baseFee: 5,
-        perMileRate: 1.5,
+        acceptedPaymentMethods: [],
+        fees: {},
         earnings: {},
         restaurantLedger: {},
         reviews: [],
-      } as Driver;
+      } as unknown as Driver;
       break;
     case UserRole.RESTAURANT:
       userProfile = {
@@ -93,22 +90,13 @@ export const signUpWithEmailPassword = async (email, password, role, profileData
   }
 
   await set(ref(database, `${role.toLowerCase()}s/${user.uid}`), userProfile);
+  await signOut(auth);
   return user;
 };
 
 // Sign In
 export const signInWithEmail = async (email, password) => {
   return await signInWithEmailAndPassword(auth, email, password);
-};
-
-// Google Sign-In
-export const signInWithGoogle = async () => {
-  return await signInWithPopup(auth, googleProvider);
-};
-
-// Apple Sign-In
-export const signInWithApple = async () => {
-  return await signInWithPopup(auth, appleProvider);
 };
 
 // Sign Out

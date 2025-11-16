@@ -9,7 +9,7 @@ interface DriverDashboardProps {
   completedOrders: Order[];
   activeOrder: Order | null;
   restaurants: Restaurant[];
-  customer: Customer;
+  customers: Customer[];
   onAcceptOrder: (orderId: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
 }
@@ -35,26 +35,26 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
   completedOrders,
   activeOrder,
   restaurants,
-  customer,
+  customers,
   onAcceptOrder,
   updateOrderStatus,
 }) => {
 
   if (activeOrder) {
     const restaurant = restaurants.find(r => r.id === activeOrder.restaurantId);
-    const orderCustomer = activeOrder.customerId === customer.id ? customer : undefined;
+    const customer = customers.find(c => c.id === activeOrder.customerId);
     return (
       <ActiveDelivery
         order={activeOrder}
         restaurant={restaurant}
-        customer={orderCustomer}
+        customer={customer}
         updateOrderStatus={updateOrderStatus}
       />
     );
   }
 
-  const totalEarnings = Object.values(driver.earnings).reduce((sum, earning) => sum + (earning as number), 0);
-  const totalOwed = Object.values(driver.restaurantLedger).reduce((sum, amount) => sum + (amount as number), 0);
+  const totalEarnings = Object.values(driver.earnings || {}).map(e => Number(e)).reduce((sum, earning) => sum + earning, 0);
+  const totalOwed = Object.values(driver.restaurantLedger || {}).map(a => Number(a)).reduce((sum, amount) => sum + amount, 0);
 
   return (
     <div className="space-y-12">
@@ -82,14 +82,14 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
         <div>
             <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Balances Owed</h3>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                {Object.keys(driver.restaurantLedger).length > 0 ? (
+                {Object.keys(driver.restaurantLedger || {}).length > 0 ? (
                     <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {Object.entries(driver.restaurantLedger).map(([restaurantId, amount]) => {
+                        {(Object.entries(driver.restaurantLedger) as [string, number][]).map(([restaurantId, amount]) => {
                             const restaurant = restaurants.find(r => r.id === restaurantId);
                             return (
                                 <li key={restaurantId} className="p-4 flex justify-between items-center">
                                     <p className="font-semibold text-gray-900 dark:text-white">{restaurant?.name || 'Unknown Restaurant'}</p>
-                                    <p className="font-mono text-lg text-red-600 dark:text-red-400">R{(amount as number).toFixed(2)}</p>
+                                    <p className="font-mono text-lg text-red-600 dark:text-red-400">R{amount.toFixed(2)}</p>
                                 </li>
                             )
                         })}

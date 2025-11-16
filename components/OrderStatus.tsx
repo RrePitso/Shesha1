@@ -1,127 +1,129 @@
 import React from 'react';
-import { Order, OrderStatus } from '../types';
+import { Order, OrderStatus, Driver, PaymentMethod } from '../types';
 
 interface OrderStatusTrackerProps {
   order: Order;
   restaurantName: string;
+  driver?: Driver;
   onPayNow: (order: Order) => void;
+  onConfirmPayshapPayment?: (orderId: string) => void;
   onRateDriver?: (order: Order) => void;
   onRateRestaurant?: (order: Order) => void;
 }
 
-const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({ order, restaurantName, onPayNow, onRateDriver, onRateRestaurant }) => {
-  const statuses = [
-    OrderStatus.PLACED,
-    OrderStatus.PREPARING,
-    OrderStatus.READY_FOR_PICKUP,
-    OrderStatus.PENDING_PAYMENT,
-    OrderStatus.AWAITING_PICKUP,
-    OrderStatus.PICKED_UP,
-    OrderStatus.DELIVERED
-  ];
+const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({ 
+    order, 
+    restaurantName, 
+    driver,
+    onPayNow,
+    onConfirmPayshapPayment,
+    onRateDriver,
+    onRateRestaurant 
+}) => {
 
-  const currentStatusIndex = statuses.indexOf(order.status);
+    const getStatusText = (status: OrderStatus) => {
+        // Correctly display status for cash-based payments after selection.
+        if (status === OrderStatus.DRIVER_ASSIGNED && (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT)) {
+            return 'Driver has been assigned and is on their way.';
+        }
 
-  const getStatusClass = (index: number) => {
-    if (index < currentStatusIndex) return 'bg-green-500 border-green-500';
-    if (index === currentStatusIndex) {
-        if (order.status === OrderStatus.DELIVERED) return 'bg-green-500 border-green-500';
-        return 'bg-indigo-600 border-indigo-600 animate-pulse';
+        const texts: Record<OrderStatus, string> = {
+            [OrderStatus.PENDING_CONFIRMATION]: 'Waiting for restaurant to confirm...',
+            [OrderStatus.ACCEPTED_BY_RESTAURANT]: 'Restaurant is preparing your order...',
+            [OrderStatus.PENDING_DRIVER_ASSIGNMENT]: 'Searching for a driver...',
+            [OrderStatus.DRIVER_ASSIGNED]: 'Choose a payment method to proceed.',
+            [OrderStatus.PENDING_PAYMENT]: 'Waiting for you to make payment...',
+            [OrderStatus.AWAITING_DRIVER_CONFIRMATION]: 'Waiting for driver to acknowledge payment...',
+            [OrderStatus.AT_RESTAURANT]: 'Driver is at the restaurant.',
+            [OrderStatus.IN_TRANSIT]: 'Your order is on the way!',
+            [OrderStatus.AT_DROPOFF]: 'Driver has arrived with your order.',
+            [OrderStatus.DELIVERED]: 'Your order has been delivered!',
+        };
+        return texts[status] || 'Order status is unknown.';
+    };
+
+    const renderActionButton = () => {
+        // Only show the 'Choose Payment' button if a payment method has NOT been selected yet.
+        if (order.status === OrderStatus.DRIVER_ASSIGNED && !order.paymentMethod) {
+            return (
+                <button 
+                    onClick={() => onPayNow(order)}
+                    className="w-full sm:w-auto bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-lg mt-4"
+                >
+                    Choose Payment
+                </button>
+            );
+        }
+
+        if (order.status === OrderStatus.PENDING_PAYMENT && onConfirmPayshapPayment) {
+            return (
+                <div className='mt-4 text-center'>
+                    <p className='text-gray-600 dark:text-gray-300'>Please send <span className='font-bold'>R{order.total?.toFixed(2)}</span> to the driver at <span className='font-bold'>{driver?.paymentPhoneNumber}</span> via Payshap.</p>
+                    <button 
+                        onClick={() => onConfirmPayshapPayment(order.id)}
+                        className="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 shadow-lg mt-4"
+                    >
+                        I Have Paid
+                    </button>
+                </div>
+            );
+        }
+
+        if (order.status === OrderStatus.DELIVERED && onRateDriver && onRateRestaurant) {
+            return (
+                <div className='flex flex-col sm:flex-row justify-center items-center mt-4 space-y-4 sm:space-y-0 sm:space-x-4'>
+                    <button 
+                        onClick={() => onRateDriver(order)}
+                        className="w-full sm:w-auto bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 shadow-lg"
+                    >
+                        Rate Driver
+                    </button>
+                    <button 
+                        onClick={() => onRateRestaurant(order)}
+                        className="w-full sm:w-auto bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition duration-300 shadow-lg"
+                    >
+                        Rate Restaurant
+                    </button>
+                </div>
+            );
+        }
+
+        return null;
     }
-    return 'bg-gray-300 dark:bg-gray-600 border-gray-300 dark:border-gray-600';
-  };
-  
-  const getLineClass = (index: number) => {
-    if (index < currentStatusIndex) return 'bg-green-500';
-    return 'bg-gray-300 dark:bg-gray-600';
-  };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Order from {restaurantName}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Order #{order.id.slice(0, 6)}</p>
-        </div>
-        <div className="text-right">
-            <p className="text-lg font-bold text-gray-900 dark:text-white">R{order.total.toFixed(2)}</p>
-            <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{order.status}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center mt-6 overflow-x-auto pb-4">
-        {statuses.map((status, index) => (
-          <React.Fragment key={status}>
-            <div className="flex flex-col items-center flex-shrink-0 mx-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white border-2 ${getStatusClass(index)}`}>
-                {index < currentStatusIndex || order.status === OrderStatus.DELIVERED ? (
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                ) : (
-                  <span>{index + 1}</span>
-                )}
-              </div>
-              <p className={`mt-2 text-xs text-center w-20 ${index <= currentStatusIndex ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>{status}</p>
-            </div>
-            {index < statuses.length - 1 && (
-              <div className={`flex-1 h-1 ${getLineClass(index)}`}></div>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-      
-       {/* Bill Details & Actions */}
-      <div className="border-t border-gray-200 dark:border-gray-700 mt-4 pt-4 flex justify-between items-end flex-wrap gap-4">
-        {/* FIX: Simplified condition to avoid unintentional type comparison error. The check for DELIVERED was redundant. */}
-        {(order.status !== OrderStatus.PLACED && order.status !== OrderStatus.PREPARING) ? (
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
             <div>
-                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Bill Details:</h4>
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <p>Food Total: <span className="font-mono">R{order.foodTotal.toFixed(2)}</span></p>
-                    <p>Delivery Fee: <span className="font-mono">R{order.deliveryFee.toFixed(2)}</span></p>
-                    <p className="font-bold">Total: <span className="font-mono">R{order.total.toFixed(2)}</span></p>
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Order from {restaurantName}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Order ID: #{order.id.slice(-6)}</p>
             </div>
-        ) : <div />}
-        <div className="flex items-center space-x-2">
-          {order.status === OrderStatus.PENDING_PAYMENT && (
-              <button 
-                  onClick={() => onPayNow(order)}
-                  className="bg-green-600 text-white font-bold py-2 px-6 rounded-md hover:bg-green-700 transition-colors"
-              >
-                  Pay Now
-              </button>
-          )}
-          {order.status === OrderStatus.DELIVERED && !order.isRestaurantReviewed && onRateRestaurant && (
-              <button 
-                  onClick={() => onRateRestaurant(order)}
-                  className="bg-purple-500 text-white font-bold py-2 px-6 rounded-md hover:bg-purple-600 transition-colors"
-              >
-                  Rate Restaurant
-              </button>
-          )}
-          {order.status === OrderStatus.DELIVERED && !order.isReviewed && onRateDriver && order.driverId && (
-              <button 
-                  onClick={() => onRateDriver(order)}
-                  className="bg-yellow-500 text-white font-bold py-2 px-6 rounded-md hover:bg-yellow-600 transition-colors"
-              >
-                  Rate Driver
-              </button>
-          )}
-          {order.status === OrderStatus.DELIVERED && order.isRestaurantReviewed && (
-               <div className="flex items-center space-x-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 py-2 px-4 rounded-md">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                   <span className="font-semibold text-xs">Restaurant Review Submitted</span>
-               </div>
-          )}
-          {order.status === OrderStatus.DELIVERED && order.isReviewed && (
-               <div className="flex items-center space-x-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 py-2 px-4 rounded-md">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                   <span className="font-semibold text-xs">Driver Review Submitted</span>
-               </div>
-          )}
+            <div className="mt-3 sm:mt-0 text-right">
+                <p className="text-xl font-bold text-gray-800 dark:text-gray-100">Total: R{order.total ? order.total.toFixed(2) : order.foodTotal.toFixed(2)}</p>
+                {order.paymentMethod && <p className="text-sm text-gray-600 dark:text-gray-300">via {order.paymentMethod}</p>}
+            </div>
         </div>
-      </div>
 
+        <div className="my-6">
+            <p className="text-lg font-semibold text-center text-gray-800 dark:text-gray-200 mb-4">{getStatusText(order.status)}</p>
+            {/* Visual Tracker can go here if you want one */}
+        </div>
+
+        <div>
+            {renderActionButton()}
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="font-bold text-gray-800 dark:text-gray-200 mb-2">Order Summary:</h4>
+            <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                {order.items.map(item => (
+                    <li key={item.id} className="flex justify-between">
+                        <span>{item.name} x {item.quantity}</span>
+                        <span>R{(item.price * (item.quantity || 1)).toFixed(2)}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
     </div>
   );
 };

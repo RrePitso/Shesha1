@@ -1,84 +1,127 @@
 
+import { get, ref, set, push, update, remove } from 'firebase/database';
 import { database } from '../firebase';
-import { ref, set, get, update, push, remove } from 'firebase/database';
-import { Restaurant, Customer, Driver, Order, Review, MenuItem, Address } from '../types';
+import { Order, Restaurant, Driver, Customer, Review, Address } from '../types';
 
-// Generic function to get data
-export const getData = async (path: string) => {
-  const snapshot = await get(ref(database, path));
-  if (snapshot.exists()) {
-    return snapshot.val();
-  }
-  return null;
+// Generic function to fetch data
+const fetchData = async (path: string) => {
+    try {
+        const snapshot = await get(ref(database, path));
+        return snapshot.exists() ? snapshot.val() : null;
+    } catch (error) {
+        console.error(`Error fetching data from ${path}:`, error);
+        return null;
+    }
 };
 
-// Generic function to write data at a specific path
-export const writeData = (path: string, data: any) => {
-  return set(ref(database, path), data);
+export const updateData = async (path: string, data: object) => {
+    await update(ref(database, path), data);
 };
 
-// Generic function to update data at a specific path
-export const updateData = (path: string, data: object) => {
-  return update(ref(database, path), data);
+// --- Getters ---
+
+export const getRestaurants = async (): Promise<Restaurant[]> => {
+    const data = await fetchData('restaurants');
+    if (!data) return [];
+    return Object.keys(data).map(id => ({
+        id,
+        ...data[id],
+        reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
+        menu: data[id].menu ? Object.values(data[id].menu) : [],
+    }));
 };
 
-// Generic function to push data to a list
-export const pushData = (path: string, data: any) => {
-  const newRef = push(ref(database, path));
-  set(newRef, data);
-  return newRef.key;
+export const getDrivers = async (): Promise<Driver[]> => {
+    const data = await fetchData('drivers');
+    if (!data) return [];
+    return Object.keys(data).map(id => ({
+        id,
+        ...data[id],
+        reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
+    }));
 };
 
-// Generic function to delete data
-export const deleteData = (path: string) => {
-    return remove(ref(database, path));
-}
+export const getOrders = async (): Promise<Order[]> => {
+    const data = await fetchData('orders');
+    if (!data) return [];
+    return Object.keys(data).map(id => ({
+        id,
+        ...data[id],
+        items: data[id].items ? Object.values(data[id].items) : [],
+    }));
+};
 
+export const getCustomer = async (id: string): Promise<Customer | null> => {
+    const data = await fetchData(`customers/${id}`);
+    if (!data) return null;
+    return { 
+        id, 
+        ...data,
+        addresses: data.addresses ? Object.values(data.addresses) : [],
+    } as Customer;
+};
 
-// Restaurant specific functions
-export const getRestaurant = (restaurantId: string): Promise<Restaurant | null> => getData(`restaurants/${restaurantId}`);
-export const getRestaurants = (): Promise<{[id: string]: Restaurant} | null> => getData('restaurants');
-export const createRestaurant = (restaurantId: string, restaurant: Restaurant) => writeData(`restaurants/${restaurantId}`, restaurant);
-export const updateRestaurant = (restaurantId: string, data: Partial<Restaurant>) => updateData(`restaurants/${restaurantId}`, data);
-export const addRestaurantReview = (restaurantId: string, review: Review) => {
-    return pushData(`restaurants/${restaurantId}/reviews`, review);
-}
+export const getDriver = async (id: string): Promise<Driver | null> => {
+    const data = await fetchData(`drivers/${id}`);
+    return data ? { id, ...data } as Driver : null;
+};
 
-// Menu Item specific functions
-export const getMenuItems = (restaurantId: string): Promise<MenuItem[] | null> => getData(`restaurants/${restaurantId}/menu`);
-export const createMenuItem = (restaurantId: string, menuItem: MenuItem) => {
-    const menuItemId = pushData(`restaurants/${restaurantId}/menu`, menuItem);
-    return menuItemId;
-}
-export const updateMenuItem = (restaurantId: string, menuId: string, data: Partial<MenuItem>) => updateData(`restaurants/${restaurantId}/menu/${menuId}`, data);
-export const deleteMenuItem = (restaurantId: string, menuId: string) => deleteData(`restaurants/${restaurantId}/menu/${menuId}`);
+export const getRestaurant = async (id: string): Promise<Restaurant | null> => {
+    const data = await fetchData(`restaurants/${id}`);
+    return data ? { id, ...data } as Restaurant : null;
+};
 
+export const getOrder = async (id: string): Promise<Order | null> => {
+    const data = await fetchData(`orders/${id}`);
+    return data ? { id, ...data } as Order : null;
+};
 
-// Customer specific functions
-export const getCustomer = (customerId: string): Promise<Customer | null> => getData(`customers/${customerId}`);
-export const createCustomer = (customerId: string, customer: Customer) => writeData(`customers/${customerId}`, customer);
-export const updateCustomer = (customerId: string, data: Partial<Customer>) => updateData(`customers/${customerId}`, data);
-export const addCustomerAddress = (customerId: string, address: Address) => {
-    const addressId = pushData(`customers/${customerId}/addresses`, address);
-    return addressId;
-}
-export const updateCustomerAddress = (customerId: string, addressId: string, data: Partial<Address>) => updateData(`customers/${customerId}/addresses/${addressId}`, data);
-export const deleteCustomerAddress = (customerId: string, addressId: string) => deleteData(`customers/${customerId}/addresses/${addressId}`);
+// --- Setters / Updaters ---
 
+export const createOrder = async (orderData: Omit<Order, 'id'>): Promise<string> => {
+    const newOrderRef = push(ref(database, 'orders'));
+    await set(newOrderRef, orderData);
+    return newOrderRef.key!;
+};
 
+export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
+    await update(ref(database, `orders/${orderId}`), updates);
+};
 
-// Driver specific functions
-export const getDriver = (driverId: string): Promise<Driver | null> => getData(`drivers/${driverId}`);
-export const createDriver = (driverId: string, driver: Driver) => writeData(`drivers/${driverId}`, driver);
-export const updateDriver = (driverId: string, data: Partial<Driver>) => updateData(`drivers/${driverId}`, data);
-export const addDriverReview = (driverId: string, review: Review) => {
-    return pushData(`drivers/${driverId}/reviews`, review);
-}
+export const updateDriver = async (driverId: string, updates: Partial<Driver>) => {
+    await update(ref(database, `drivers/${driverId}`), updates);
+};
 
-// Order specific functions
-export const getOrder = (orderId: string): Promise<Order | null> => getData(`orders/${orderId}`);
-export const createOrder = (order: Order) => {
-    const orderId = pushData('orders', order);
-    return orderId;
-}
-export const updateOrder = (orderId: string, data: Partial<Order>) => updateData(`orders/${orderId}`, data);
+export const updateRestaurant = async (restaurantId: string, updates: Partial<Restaurant>) => {
+    await update(ref(database, `restaurants/${restaurantId}`), updates);
+};
+
+export const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
+    await update(ref(database, `customers/${customerId}`), updates);
+};
+
+export const addCustomerAddress = async (customerId: string, address: Omit<Address, 'id'>): Promise<string> => {
+    const newAddressRef = push(ref(database, `customers/${customerId}/addresses`));
+    await set(newAddressRef, { ...address, id: newAddressRef.key });
+    return newAddressRef.key;
+};
+
+export const updateCustomerAddress = async (customerId: string, addressId: string, updates: Partial<Address>) => {
+    await update(ref(database, `customers/${customerId}/addresses/${addressId}`), updates);
+};
+
+export const deleteCustomerAddress = async (customerId: string, addressId: string) => {
+    await remove(ref(database, `customers/${customerId}/addresses/${addressId}`));
+};
+
+export const addDriverReview = async (driverId: string, review: Omit<Review, 'id'>) => {
+    const newReviewRef = push(ref(database, `drivers/${driverId}/reviews`));
+    await set(newReviewRef, { ...review, id: newReviewRef.key });
+    return newReviewRef.key;
+};
+
+export const addRestaurantReview = async (restaurantId: string, review: Omit<Review, 'id'>) => {
+    const newReviewRef = push(ref(database, `restaurants/${restaurantId}/reviews`));
+    await set(newReviewRef, { ...review, id: newReviewRef.key });
+    return newReviewRef.key;
+};
