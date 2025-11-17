@@ -20,10 +20,11 @@ const Login = ({ onSignUpClick }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 bg-gray-100 dark:bg-gray-900 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 bg-brand-background sm:px-6 lg:px-8">
+      <div className="w-full max-w-md p-8 space-y-6 bg-form-background rounded-lg shadow-md">
         <div>
-          <h2 className="text-3xl font-extrabold text-center text-gray-900 dark:text-white">
+          <img className="mx-auto h-24 w-auto" src="/2-822f66d1.ico" alt="iDelivery" />
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-brand-background">
             Login to your account
           </h2>
         </div>
@@ -38,7 +39,7 @@ const Login = ({ onSignUpClick }) => {
                 type="email"
                 autoComplete="email"
                 required
-                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                className="relative block w-full px-3 py-2 text-brand-background placeholder-gray-500 bg-white border border-gray-300 rounded-none appearance-none rounded-t-md focus:outline-none focus:ring-primary-orange focus:border-primary-orange focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -52,7 +53,7 @@ const Login = ({ onSignUpClick }) => {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-none appearance-none rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                className="relative block w-full px-3 py-2 text-brand-background placeholder-gray-500 bg-white border border-gray-300 rounded-none appearance-none rounded-b-md focus:outline-none focus:ring-primary-orange focus:border-primary-orange focus:z-10 sm:text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -65,7 +66,7 @@ const Login = ({ onSignUpClick }) => {
           <div>
             <button
               type="submit"
-              className="relative flex justify-center w-full px-4 py-2 mt-6 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md group hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="relative flex justify-center w-full px-4 py-2 mt-6 text-sm font-medium text-white bg-primary-orange border border-transparent rounded-md group hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-orange"
             >
               Login
             </button>
@@ -73,10 +74,10 @@ const Login = ({ onSignUpClick }) => {
         </form>
 
         <p className="mt-6 text-sm text-center">
-          <span className="text-gray-600 dark:text-gray-400">
+          <span className="text-gray-800">
             Don't have an account?{' '}
           </span>
-          <button onClick={onSignUpClick} className="font-medium text-indigo-600 hover:text-indigo-500">
+          <button onClick={onSignUpClick} className="font-medium text-primary-orange hover:text-secondary-orange">
             Sign Up
           </button>
         </p>

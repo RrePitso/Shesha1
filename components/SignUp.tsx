@@ -92,10 +92,11 @@ const SignUp = ({ onLoginClick }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 bg-gray-100 dark:bg-gray-900 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 bg-brand-background sm:px-6 lg:px-8">
+      <div className="w-full max-w-md p-8 space-y-6 bg-form-background rounded-lg shadow-md">
         <div>
-          <h2 className="text-3xl font-extrabold text-center text-gray-900 dark:text-white">
+          <img className="mx-auto h-24 w-auto" src="/2-822f66d1.ico" alt="iDelivery" />
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-brand-background">
             Create a new account
           </h2>
         </div>
@@ -112,7 +113,7 @@ const SignUp = ({ onLoginClick }) => {
                     value={role} 
                     onChange={(e) => setRole(e.target.value as UserRole)} 
                     required
-                    className="block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                    className="block w-full px-3 py-2 text-brand-background placeholder-gray-500 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary-orange focus:border-primary-orange sm:text-sm"
                 >
                     <option value={UserRole.CUSTOMER}>Sign up as a Customer</option>
                     <option value={UserRole.DRIVER}>Sign up as a Driver</option>
@@ -120,7 +121,7 @@ const SignUp = ({ onLoginClick }) => {
                 </select>
             </div>
 
-            <div className="py-2 border-t border-gray-200 dark:border-gray-700"></div>
+            <div className="py-2 border-t border-gray-200"></div>
 
             {renderRoleFields()}
           </div>
@@ -131,7 +132,7 @@ const SignUp = ({ onLoginClick }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md group hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed"
+              className="relative flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-primary-orange border border-transparent rounded-md group hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-orange disabled:bg-opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Creating account...' : 'Sign Up'}
             </button>
@@ -139,10 +140,10 @@ const SignUp = ({ onLoginClick }) => {
         </form>
 
         <p className="mt-6 text-sm text-center">
-          <span className="text-gray-600 dark:text-gray-400">
+          <span className="text-gray-800">
             Already have an account?{' '}
           </span>
-          <button onClick={onLoginClick} className="font-medium text-indigo-600 hover:text-indigo-500">
+          <button onClick={onLoginClick} className="font-medium text-primary-orange hover:text-secondary-orange">
             Login
           </button>
         </p>
@@ -160,7 +161,7 @@ const InputField = ({ id, type, placeholder, value, onChange, required = false }
             type={type}
             autoComplete={id}
             required={required}
-            className="relative block w-full px-3 py-2 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            className="relative block w-full px-3 py-2 text-brand-background placeholder-gray-500 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary-orange focus:border-primary-orange sm:text-sm"
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
