@@ -54,13 +54,13 @@ const RestaurantRatingModal: React.FC<RestaurantRatingModalProps> = ({ order, re
     <div className={`fixed inset-0 flex justify-center items-center z-50 p-4 transition-opacity duration-300 ${isVisible ? 'bg-black bg-opacity-60' : 'bg-transparent'}`} onClick={handleClose}>
       <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transition-all duration-300 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Rate Restaurant</h2>
+          <h2 className="text-2xl font-bold text-green-900 dark:text-white">Rate Restaurant</h2>
           <p className="text-gray-600 dark:text-gray-400">How was your meal from {restaurant.name}?</p>
         </div>
         
         <div className="p-6 space-y-6">
           <div>
-            <p className="text-center font-semibold text-gray-800 dark:text-gray-200 mb-2">Your Rating</p>
+            <p className="text-center font-semibold text-green-900 dark:text-gray-200 mb-2">Your Rating</p>
             <div className="flex justify-center" onMouseLeave={() => setHoverRating(0)}>
                 {[1, 2, 3, 4, 5].map(star => (
                     <Star 
@@ -81,7 +81,7 @@ const RestaurantRatingModal: React.FC<RestaurantRatingModalProps> = ({ order, re
               onChange={e => setComment(e.target.value)}
               rows={4}
               placeholder={`e.g., "The food was amazing!"`}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-orange focus:border-primary-orange dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
         </div>
@@ -93,7 +93,7 @@ const RestaurantRatingModal: React.FC<RestaurantRatingModalProps> = ({ order, re
           <button 
             onClick={handleSubmit} 
             disabled={isLoading || rating === 0}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed w-36 flex justify-center items-center"
+            className="px-4 py-2 bg-primary-orange text-white rounded-md hover:bg-secondary-orange disabled:bg-gray-400 disabled:cursor-not-allowed w-36 flex justify-center items-center"
           >
             {isLoading ? <Spinner /> : 'Submit Review'}
           </button>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Restaurant, MenuItem } from '../types';
 
@@ -62,7 +63,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{restaurant.name}'s Menu</h2>
+          <h2 className="text-2xl font-bold text-green-900 dark:text-white">{restaurant.name}'s Menu</h2>
           <button onClick={handleClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-white">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -73,7 +74,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
         <div className="flex-grow overflow-y-auto md:grid md:grid-cols-2 gap-6 p-6">
           {/* Menu Items */}
           <div className="md:col-span-1">
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Menu</h3>
+            <h3 className="text-xl font-semibold mb-4 text-green-900 dark:text-gray-200">Menu</h3>
             <div className="space-y-4">
               {restaurant.menu.map(item => {
                 const isAvailable = item.isAvailable ?? true;
@@ -85,12 +86,12 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
                     <div className={!isAvailable ? 'opacity-50' : ''}>
                       <p className={`font-semibold text-gray-900 dark:text-white ${!isAvailable ? 'line-through' : ''}`}>{item.name}</p>
                       <p className={`text-sm text-gray-500 dark:text-gray-400 ${!isAvailable ? 'line-through' : ''}`}>{item.description}</p>
-                      <p className={`text-md font-bold text-indigo-600 dark:text-indigo-400 mt-1 ${!isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
+                      <p className={`text-md font-bold text-primary-orange dark:text-orange-400 mt-1 ${!isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
                     </div>
                     <button 
                       onClick={() => isAvailable && addToCart(item)} 
                       disabled={!isAvailable}
-                      className={`p-2 rounded-full transition-transform active:scale-90 ${isAvailable ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'}`}
+                      className={`p-2 rounded-full transition-transform active:scale-90 ${isAvailable ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'}`}
                       title={!isAvailable ? 'Currently unavailable' : 'Add to cart'}
                     >
                       {isAvailable ? (
@@ -111,8 +112,8 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
           
           {/* Cart */}
           <div className="md:col-span-1 mt-6 md:mt-0">
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Your Order</h3>
-            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg min-h-[200px] flex flex-col">
+            <h3 className="text-xl font-semibold mb-4 text-green-900 dark:text-gray-200">Your Order</h3>
+            <div className="bg-green-50 dark:bg-green-900/50 p-4 rounded-lg min-h-[200px] flex flex-col">
               {cart.length === 0 ? (
                 <p className="text-gray-500 dark:text-gray-400 m-auto">Your cart is empty.</p>
               ) : (
@@ -135,7 +136,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
               )}
               {cart.length > 0 && (
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                  <div className="flex justify-between items-center text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="flex justify-between items-center text-lg font-bold text-green-900 dark:text-white">
                     <span>Subtotal</span>
                     <span>R{total.toFixed(2)}</span>
                   </div>
@@ -149,7 +150,7 @@ const MenuModal: React.FC<MenuModalProps> = ({ restaurant, onClose, onProceedToC
           <button
             onClick={handleProceed}
             disabled={cart.length === 0}
-            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all active:scale-95"
+            className="w-full bg-primary-orange text-white py-3 px-4 rounded-md hover:bg-secondary-orange disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all active:scale-95"
           >
             Place Order
           </button>

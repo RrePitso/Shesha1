@@ -64,17 +64,17 @@ const ActiveDelivery: React.FC<ActiveDeliveryProps> = ({ order, restaurant, cust
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 max-w-2xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Active Delivery</h2>
+      <h2 className="text-3xl font-bold text-green-900 dark:text-white mb-2">Active Delivery</h2>
       <p className="text-md text-gray-500 dark:text-gray-400 mb-6">Order #{order.id.slice(0, 6)}</p>
 
       <div className="space-y-6">
-        <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/50 rounded-lg">
-          <p className="font-semibold text-indigo-800 dark:text-indigo-200 text-lg">Current Status: <span className="font-bold">{order.status}</span></p>
+        <div className="text-center p-4 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
+          <p className="font-semibold text-primary-orange dark:text-orange-200 text-lg">Current Status: <span className="font-bold">{order.status}</span></p>
         </div>
 
         <div className="flex items-start p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-           <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-3 mr-4">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-600 dark:text-indigo-300" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
+           <div className="bg-orange-100 dark:bg-orange-900/50 rounded-full p-3 mr-4">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-orange dark:text-orange-300" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
            </div>
            <div>
                <p className="text-lg font-bold text-gray-800 dark:text-gray-200">Pickup: {restaurant.name}</p>

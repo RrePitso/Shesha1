@@ -15,8 +15,8 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, updateOrderStatus }) => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex flex-col justify-between">
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Order #{order.id.slice(0, 6)}</h3>
-          <span className="px-3 py-1 text-sm font-semibold text-indigo-800 bg-indigo-100 rounded-full dark:bg-indigo-900 dark:text-indigo-200">{order.status}</span>
+          <h3 className="text-lg font-bold text-green-900 dark:text-white">Order #{order.id.slice(0, 6)}</h3>
+          <span className="px-3 py-1 text-sm font-semibold text-orange-800 bg-orange-100 rounded-full dark:bg-orange-900 dark:text-orange-200">{order.status}</span>
         </div>
         <div className="border-t border-b border-gray-200 dark:border-gray-700 py-3 my-3">
           <ul className="space-y-1">
@@ -28,7 +28,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, updateOrderStatus }) => {
             ))}
           </ul>
         </div>
-        <div className="text-right font-bold text-lg text-gray-900 dark:text-white">
+        <div className="text-right font-bold text-lg text-green-900 dark:text-white">
           Food Total: R{order.foodTotal.toFixed(2)}
         </div>
       </div>
@@ -36,7 +36,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, updateOrderStatus }) => {
         {canBeAccepted && (
           <button
             onClick={() => updateOrderStatus(order.id, OrderStatus.ACCEPTED_BY_RESTAURANT)}
-            className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
+            className="flex-1 bg-primary-orange text-white py-2 px-4 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
           >
             Accept Order
           </button>

@@ -22,7 +22,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, onViewMenu 
         </div>
         <button
           onClick={() => onViewMenu(restaurant)}
-          className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
+          className="mt-4 w-full bg-primary-orange text-white py-2 px-4 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
         >
           View Menu
         </button>

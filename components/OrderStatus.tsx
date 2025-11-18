@@ -48,7 +48,7 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
             return (
                 <button 
                     onClick={() => onPayNow(order)}
-                    className="w-full sm:w-auto bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-lg mt-4"
+                    className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg mt-4"
                 >
                     Choose Payment
                 </button>
@@ -74,13 +74,13 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
                 <div className='flex flex-col sm:flex-row justify-center items-center mt-4 space-y-4 sm:space-y-0 sm:space-x-4'>
                     <button 
                         onClick={() => onRateDriver(order)}
-                        className="w-full sm:w-auto bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 shadow-lg"
+                        className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg"
                     >
                         Rate Driver
                     </button>
                     <button 
                         onClick={() => onRateRestaurant(order)}
-                        className="w-full sm:w-auto bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition duration-300 shadow-lg"
+                        className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg"
                     >
                         Rate Restaurant
                     </button>
@@ -95,11 +95,11 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
             <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Order from {restaurantName}</h3>
+                <h3 className="text-2xl font-bold text-green-900 dark:text-white">Order from {restaurantName}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Order ID: #{order.id.slice(-6)}</p>
             </div>
             <div className="mt-3 sm:mt-0 text-right">
-                <p className="text-xl font-bold text-gray-800 dark:text-gray-100">Total: R{order.total ? order.total.toFixed(2) : order.foodTotal.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-900 dark:text-gray-100">Total: R{order.total ? order.total.toFixed(2) : order.foodTotal.toFixed(2)}</p>
                 {order.paymentMethod && <p className="text-sm text-gray-600 dark:text-gray-300">via {order.paymentMethod}</p>}
             </div>
         </div>

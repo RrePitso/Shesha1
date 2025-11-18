@@ -72,15 +72,15 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
                 <p className="text-3xl font-bold text-red-900 dark:text-red-200 mt-1">R{totalOwed.toFixed(2)}</p>
             </div>
              {/* Completed Deliveries Count */}
-            <div className="bg-indigo-100 dark:bg-indigo-900/50 p-6 rounded-lg shadow">
-                <h4 className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Completed Deliveries</h4>
-                <p className="text-3xl font-bold text-indigo-900 dark:text-indigo-200 mt-1">{completedOrders.length}</p>
+            <div className="bg-orange-100 dark:bg-orange-900/50 p-6 rounded-lg shadow">
+                <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">Completed Deliveries</h4>
+                <p className="text-3xl font-bold text-orange-900 dark:text-orange-200 mt-1">{completedOrders.length}</p>
             </div>
         </div>
 
         {/* Balances Owed Details */}
         <div>
-            <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Balances Owed</h3>
+            <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Balances Owed</h3>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 {Object.keys(driver.restaurantLedger || {}).length > 0 ? (
                     <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -103,7 +103,7 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
 
       {/* Available Deliveries */}
       <div>
-        <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Available Deliveries</h3>
+        <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Available Deliveries</h3>
         {availableOrders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {availableOrders.map(order => {
@@ -130,7 +130,7 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
 
       {/* Completed Delivery History */}
       <div>
-          <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Delivery History</h3>
+          <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Delivery History</h3>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
               {completedOrders.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -166,7 +166,7 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
 
        {/* Your Reviews section */}
        <div>
-          <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Your Reviews</h3>
+          <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Your Reviews</h3>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
               {driver.reviews && driver.reviews.length > 0 ? (
                   <ul className="divide-y divide-gray-200 dark:divide-gray-700">

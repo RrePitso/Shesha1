@@ -56,19 +56,19 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
     <div className={`fixed inset-0 bg-black flex justify-center items-center z-50 p-4 transition-opacity duration-300 ${isVisible ? 'bg-opacity-60' : 'bg-transparent'}`} onClick={handleClose}>
       <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transition-all duration-300 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Confirm Your Payment</h2>
+          <h2 className="text-2xl font-bold text-green-900 dark:text-white">Confirm Your Payment</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Choose a payment method to see the final price.</p>
         </div>
 
         <div className="p-6 space-y-4">
             <div>
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Select a Payment Method:</h3>
+                <h3 className="font-semibold text-green-900 dark:text-gray-200 mb-3">Select a Payment Method:</h3>
                 <div className="space-y-3">
                     {driver.acceptedPaymentMethods.map(method => (
                         <div 
                             key={method}
                             onClick={() => handleMethodSelect(method)} 
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/50' : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400'}`}>
+                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method ? 'border-primary-orange bg-orange-50 dark:bg-orange-900/50' : 'border-gray-300 dark:border-gray-600 hover:border-secondary-orange'}`}>
                             <p className="font-bold text-lg text-gray-900 dark:text-white">{method}</p>
                             {driver.fees?.[method] && <p className="text-xs text-gray-500 dark:text-gray-400">Fee: R{driver.fees[method]?.baseFee.toFixed(2)}</p>}
                         </div>
@@ -86,7 +86,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
                     <span>Delivery Fee:</span>
                     <span className="font-medium">R{deliveryFee.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="flex justify-between text-2xl font-bold text-green-900 dark:text-white">
                     <span>Total:</span>
                     <span>R{total.toFixed(2)}</span>
                 </div>
@@ -99,7 +99,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
             type="button" 
             onClick={handleConfirm} 
             disabled={!selectedMethod || isLoading} 
-            className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 w-40 flex justify-center items-center disabled:bg-indigo-400 disabled:cursor-not-allowed">
+            className="px-6 py-2 bg-primary-orange text-white rounded-md hover:bg-secondary-orange w-40 flex justify-center items-center disabled:bg-orange-300 disabled:cursor-not-allowed">
                 {isLoading ? <Spinner /> : `Confirm ${selectedMethod || ''}`}
           </button>
         </div>

@@ -35,7 +35,7 @@ const StarDisplay: React.FC<{ rating: number }> = ({ rating }) => (
 const ToggleSwitch: React.FC<{ isAvailable: boolean; onToggle: () => void }> = ({ isAvailable, onToggle }) => (
     <button
         onClick={onToggle}
-        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 ${isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-orange dark:focus:ring-offset-gray-800 ${isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
     >
         <span className="sr-only">Toggle Availability</span>
         <span
@@ -134,10 +134,10 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
   return (
     <div className="container mx-auto p-4 md:p-8">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Restaurant Dashboard</h2>
+        <h2 className="text-3xl font-bold text-green-900 dark:text-white">Restaurant Dashboard</h2>
         <button
             onClick={() => setIsProfileModalOpen(true)}
-            className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold flex items-center shadow active:scale-95"
+            className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold flex items-center shadow active:scale-95"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
             Edit Profile
@@ -169,7 +169,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
       
       {/* Active Orders Section */}
       <div>
-        <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Active Orders</h3>
+        <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Active Orders</h3>
         {activeOrders.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeOrders.map(order => (
@@ -183,7 +183,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
 
        {/* Customer Reviews Section */}
        <div className="mt-12">
-            <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Customer Reviews</h3>
+            <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Customer Reviews</h3>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 {restaurant.reviews && restaurant.reviews.length > 0 ? (
                     <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -209,7 +209,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
 
       {/* Driver Ledger Section */}
        <div className="mt-12">
-        <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Driver Ledger</h3>
+        <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Driver Ledger</h3>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
              {Object.keys(restaurant.driverLedger).length > 0 ? (
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -240,10 +240,10 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
       {/* Menu Management Section */}
       <div className="mt-12">
         <div className="flex justify-between items-center mb-4">
-            <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200">Manage Your Menu</h3>
+            <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200">Manage Your Menu</h3>
             <button
                 onClick={() => openEditModal()}
-                className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold active:scale-95"
+                className="bg-primary-orange text-white py-2 px-4 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold active:scale-95"
             >
                 Add New Item
             </button>
@@ -259,7 +259,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
                         <div className="flex items-center space-x-4">
                              <p className={`font-semibold text-gray-800 dark:text-gray-200 w-20 text-right ${!item.isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
                              <ToggleSwitch isAvailable={item.isAvailable ?? true} onToggle={() => handleToggleAvailability(item.id)} />
-                            <button onClick={() => openEditModal(item)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 p-1 transition-transform active:scale-90">Edit</button>
+                            <button onClick={() => openEditModal(item)} className="text-primary-orange hover:text-secondary-orange dark:text-orange-400 dark:hover:text-orange-200 p-1 transition-transform active:scale-90">Edit</button>
                             <button onClick={() => handleDeleteItem(item.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 transition-transform active:scale-90">Delete</button>
                         </div>
                     </li>
@@ -300,7 +300,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
 
        {/* Completed Orders Section */}
        <div className="mt-12">
-        <h3 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Completed Orders</h3>
+        <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Completed Orders</h3>
          {completedOrders.length > 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
                 <ul className="text-sm text-gray-600 dark:text-gray-400">

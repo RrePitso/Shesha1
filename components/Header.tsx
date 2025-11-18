@@ -25,18 +25,18 @@ const Header: React.FC<HeaderProps> = ({ activeRole, isLoggedIn, onLogout }) => 
   };
 
   return (
-    <header className="bg-brand-background shadow-md p-4 sticky top-0 z-50">
+    <header className="bg-black shadow-md p-4 sticky top-0 z-50">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
-<img src="/1-822f66d1.ico" alt="iDelivery Logo" className="h-10 w-10 mr-2"/>
+<img src="/1-822f66d1.ico" alt="iDelivery Logo" className="h-10 w-10 mr-2 rounded-full"/>
             <h1 className="text-2xl font-bold text-white ml-2">iDelivery</h1>
         </div>
         <div className="flex items-center space-x-4">
           {isLoggedIn && activeRole ? (
             <>
-              <div className="flex items-center bg-brand-gray p-2 rounded-lg">
+              <div className="flex items-center bg-gray-800 p-2 rounded-lg">
                 <UserIcon role={activeRole} />
-                <span className="font-semibold text-brand-background capitalize hidden sm:inline">{activeRole}</span>
+                <span className="font-semibold text-white capitalize hidden sm:inline">{activeRole}</span>
               </div>
               <button onClick={onLogout} className="px-4 py-2 rounded-md font-semibold text-white bg-secondary-orange hover:bg-primary-orange transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-orange">
                   Logout

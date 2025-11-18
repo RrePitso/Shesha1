@@ -34,7 +34,7 @@ const DeliveryRequestCard: React.FC<DeliveryRequestCardProps> = ({ order, restau
       <div>
         <div className="flex justify-between items-start mb-4">
             <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">New Delivery Request</h3>
+                <h3 className="text-lg font-bold text-green-900 dark:text-white">New Delivery Request</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Order #{order.id.slice(0, 6)}</p>
             </div>
             <span className="px-3 py-1 text-sm font-semibold text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-200">
@@ -44,8 +44,8 @@ const DeliveryRequestCard: React.FC<DeliveryRequestCardProps> = ({ order, restau
         
         <div className="space-y-3 my-4">
             <div className="flex items-start">
-                <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-2 mr-3 flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600 dark:text-indigo-300" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
+                <div className="bg-orange-100 dark:bg-orange-900/50 rounded-full p-2 mr-3 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-orange dark:text-orange-300" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
                 </div>
                 <div>
                     <p className="font-semibold text-gray-800 dark:text-gray-200">Pickup: {restaurant.name}</p>
@@ -71,7 +71,7 @@ const DeliveryRequestCard: React.FC<DeliveryRequestCardProps> = ({ order, restau
         <button
           onClick={handleAccept}
           disabled={isLoading}
-          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-bold disabled:bg-green-400 dark:disabled:bg-green-800 flex justify-center items-center active:scale-95"
+          className="w-full bg-primary-orange text-white py-2 px-4 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-bold disabled:bg-orange-300 dark:disabled:bg-orange-800 flex justify-center items-center active:scale-95"
         >
           {isLoading ? <Spinner /> : 'Accept Delivery'}
         </button>

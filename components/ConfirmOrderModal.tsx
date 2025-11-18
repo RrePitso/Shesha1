@@ -55,7 +55,7 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Confirm Your Order</h2>
+            <h2 className="text-2xl font-semibold text-green-900 dark:text-white">Confirm Your Order</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">From {orderData.restaurant.name}</p>
         </div>
 
@@ -80,15 +80,15 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
                     <p className="font-semibold text-gray-800 dark:text-gray-200">R{orderData.foodTotal.toFixed(2)}</p>
                 </div>
                 <div className="flex justify-between text-lg">
-                    <p className="font-bold text-gray-900 dark:text-white">Total</p>
-                    <p className="font-bold text-gray-900 dark:text-white">R{total.toFixed(2)}</p>
+                    <p className="font-bold text-green-900 dark:text-white">Total</p>
+                    <p className="font-bold text-green-900 dark:text-white">R{total.toFixed(2)}</p>
                 </div>
             </div>
 
             <hr className="my-4 border-gray-200 dark:border-gray-600" />
             
             <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Delivery Address</h3>
+                <h3 className="text-lg font-semibold text-green-900 dark:text-white mb-3">Delivery Address</h3>
                 {!isNewAddress && addressesArray.length > 0 ? (
                     <select
                         value={selectedAddress}
@@ -112,7 +112,7 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
                     </div>
                 )}
                 { addressesArray.length > 0 && 
-                  <button onClick={() => setIsNewAddress(!isNewAddress)} className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mt-2">
+                  <button onClick={() => setIsNewAddress(!isNewAddress)} className="text-sm text-green-600 dark:text-green-400 hover:underline mt-2">
                       {isNewAddress ? "Select from saved addresses" : "Or, enter a new address"}
                   </button>
                 }
@@ -121,7 +121,7 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
 
         <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-b-lg flex justify-end space-x-4">
             <button onClick={onClose} className="px-4 py-2 rounded-md text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold transition-colors">Cancel</button>
-            <button onClick={handleConfirm} className="px-6 py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-semibold transition-colors shadow-md active:scale-95">Confirm & Place Order</button>
+            <button onClick={handleConfirm} className="px-6 py-2 rounded-md text-white bg-primary-orange hover:bg-secondary-orange font-semibold transition-colors shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-orange">Confirm & Place Order</button>
         </div>
       </div>
     </div>
