@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Restaurant, MenuItem, GeneratedMenuItem, Driver, Review } from '../types';
 import OrderCard from './OrderCard';
@@ -87,10 +88,10 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
     const handleSaveItem = (itemData: Omit<MenuItem, 'id'> | MenuItem) => {
         let newMenu;
         if ('id' in itemData) { // Editing existing item
-            newMenu = restaurant.menu.map(item => item.id === itemData.id ? itemData : item);
+            newMenu = (restaurant.menu || []).map(item => item.id === itemData.id ? itemData : item);
         } else { // Adding new item
             const newItem: MenuItem = { ...itemData, id: `menu-${Date.now()}`, isAvailable: true };
-            newMenu = [...restaurant.menu, newItem];
+            newMenu = [...(restaurant.menu || []), newItem];
         }
         updateMenu(newMenu);
         addToast(`Menu item ${'id' in itemData ? 'updated' : 'added'}!`, 'success');
@@ -211,7 +212,7 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
        <div className="mt-12">
         <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Driver Ledger</h3>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-             {Object.keys(restaurant.driverLedger).length > 0 ? (
+             {restaurant.driverLedger && Object.keys(restaurant.driverLedger).length > 0 ? (
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                     {Object.entries(restaurant.driverLedger).map(([driverId, amount]) => {
                         const driver = drivers.find(d => d.id === driverId);
@@ -249,22 +250,28 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
             </button>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                {restaurant.menu.map(item => (
-                    <li key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <div>
-                            <p className={`font-semibold text-gray-900 dark:text-white ${!item.isAvailable ? 'line-through text-gray-500' : ''}`}>{item.name}</p>
-                            <p className={`text-sm text-gray-600 dark:text-gray-400 ${!item.isAvailable ? 'line-through' : ''}`}>{item.description}</p>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                             <p className={`font-semibold text-gray-800 dark:text-gray-200 w-20 text-right ${!item.isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
-                             <ToggleSwitch isAvailable={item.isAvailable ?? true} onToggle={() => handleToggleAvailability(item.id)} />
-                            <button onClick={() => openEditModal(item)} className="text-primary-orange hover:text-secondary-orange dark:text-orange-400 dark:hover:text-orange-200 p-1 transition-transform active:scale-90">Edit</button>
-                            <button onClick={() => handleDeleteItem(item.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 transition-transform active:scale-90">Delete</button>
-                        </div>
-                    </li>
-                ))}
-            </ul>
+            {(restaurant.menu && restaurant.menu.length > 0) ? (
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {restaurant.menu.map(item => (
+                        <li key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <div>
+                                <p className={`font-semibold text-gray-900 dark:text-white ${!item.isAvailable ? 'line-through text-gray-500' : ''}`}>{item.name}</p>
+                                <p className={`text-sm text-gray-600 dark:text-gray-400 ${!item.isAvailable ? 'line-through' : ''}`}>{item.description}</p>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <p className={`font-semibold text-gray-800 dark:text-gray-200 w-20 text-right ${!item.isAvailable ? 'line-through' : ''}`}>R{item.price.toFixed(2)}</p>
+                                <ToggleSwitch isAvailable={item.isAvailable ?? true} onToggle={() => handleToggleAvailability(item.id)} />
+                                <button onClick={() => openEditModal(item)} className="text-primary-orange hover:text-secondary-orange dark:text-orange-400 dark:hover:text-orange-200 p-1 transition-transform active:scale-90">Edit</button>
+                                <button onClick={() => handleDeleteItem(item.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 transition-transform active:scale-90">Delete</button>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="p-6 text-center">
+                    <p className="text-gray-500 dark:text-gray-400">Your menu is empty. Click "Add New Item" to get started!</p>
+                </div>
+            )}
         </div>
       </div>
       

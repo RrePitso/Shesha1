@@ -40,6 +40,8 @@ const App: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +73,8 @@ const App: React.FC = () => {
       setDrivers([]);
       setCustomers([]);
       setCustomer(null);
+      setDriver(null);
+      setRestaurant(null);
       setOrders([]);
       return;
     }
@@ -89,6 +93,7 @@ const App: React.FC = () => {
         onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
     ];
 
+    // Fetch specific user profile based on role
     if (userRole === UserRole.CUSTOMER) {
       unsubscribes.push(onValue(ref(database, `customers/${user.uid}`), (snapshot) => {
         const customerData = snapshot.val();
@@ -96,6 +101,24 @@ const App: React.FC = () => {
       }));
     } else {
       setCustomer(null);
+    }
+
+    if (userRole === UserRole.DRIVER) {
+      unsubscribes.push(onValue(ref(database, `drivers/${user.uid}`), (snapshot) => {
+        const driverData = snapshot.val();
+        setDriver(driverData ? { id: user.uid, ...driverData } : null);
+      }));
+    } else {
+      setDriver(null);
+    }
+
+    if (userRole === UserRole.RESTAURANT) {
+      unsubscribes.push(onValue(ref(database, `restaurants/${user.uid}`), (snapshot) => {
+        const restaurantData = snapshot.val();
+        setRestaurant(restaurantData ? { id: user.uid, ...restaurantData } : null);
+      }));
+    } else {
+      setRestaurant(null);
     }
 
     Promise.all([
@@ -133,7 +156,7 @@ const App: React.FC = () => {
     setIsCreatingSocialProfile(true);
     try {
       await createSocialUserProfile(user, role, profileData);
-      // After profile creation, the auth state listener will pick up the new user and role
+      setUserRole(role);
       setIsSocialSignUpOpen(false);
       setSocialUser(null);
       addToast('Account created successfully!', 'success');
@@ -251,14 +274,12 @@ const App: React.FC = () => {
         return <CustomerView {...{restaurants, orders: orders.filter(o => o.customerId === user.uid), drivers, customer, onPlaceOrder: handlePlaceOrder, onUpdateAddresses: handleUpdateAddresses, onUpdateProfile: handleUpdateCustomerProfile, onDriverReview: handleDriverReview, onRestaurantReview: handleRestaurantReview}} />;
       
       case UserRole.DRIVER:
-        const currentDriver = drivers.find(d => d.id === user.uid);
-        if (!currentDriver) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        return <DriverView {...{driver: currentDriver, orders, restaurants, customers, updateOrderStatus, acceptOrder: handleAcceptOrder, onUpdateDriver: handleUpdateDriver}} />;
+        if (!driver) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+        return <DriverView {...{driver, orders, restaurants, customers, updateOrderStatus, acceptOrder: handleAcceptOrder, onUpdateDriver: handleUpdateDriver}} />;
 
       case UserRole.RESTAURANT:
-        const managedRestaurant = restaurants.find(r => r.id === user.uid);
-        if (!managedRestaurant) return <div className="flex justify-center items-center h-screen"><p>Restaurant not found.</p></div>;
-        return <RestaurantView {...{restaurant: managedRestaurant, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
+        if (!restaurant) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+        return <RestaurantView {...{restaurant, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
       
       default:
         return <div className="flex justify-center items-center h-screen"><p>Unrecognized role.</p></div>;

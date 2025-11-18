@@ -39,6 +39,9 @@ export const signInWithEmail = async (email, password) => {
 // Social Sign-In with Google
 export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
   const result = await signInWithPopup(auth, provider);
   const isNew = await isNewUser(result.user.uid);
   return { user: result.user, isNew };
@@ -107,7 +110,7 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
         name: profileData.name || 'New Driver',
         phoneNumber: '',
         paymentPhoneNumber: '',
-        vehicle: profileData.vehicle || 'Default Vehicle',
+        vehicle: profileData.vehicle,
         rating: 0,
         baseFee: 0,
         perMileRate: 0,
@@ -121,7 +124,7 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
       userProfile = {
         ...baseProfile,
         name: profileData.name || 'New Restaurant',
-        address: profileData.address || 'Default Address',
+        address: profileData.address,
         rating: 0,
         menu: [],
         driverLedger: {},

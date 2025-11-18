@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Driver, Order, Restaurant, OrderStatus, Customer } from '../types';
 import DeliveryRequestCard from './DeliveryRequestCard';
@@ -7,7 +8,7 @@ interface DriverDashboardProps {
   driver: Driver;
   availableOrders: Order[];
   completedOrders: Order[];
-  activeOrder: Order | null;
+  activeOrders: Order[]; // Changed from activeOrder: Order | null
   restaurants: Restaurant[];
   customers: Customer[];
   onAcceptOrder: (orderId: string) => Promise<void>;
@@ -33,31 +34,41 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
   driver,
   availableOrders,
   completedOrders,
-  activeOrder,
+  activeOrders, // Changed from activeOrder
   restaurants,
   customers,
   onAcceptOrder,
   updateOrderStatus,
 }) => {
 
-  if (activeOrder) {
-    const restaurant = restaurants.find(r => r.id === activeOrder.restaurantId);
-    const customer = customers.find(c => c.id === activeOrder.customerId);
-    return (
-      <ActiveDelivery
-        order={activeOrder}
-        restaurant={restaurant}
-        customer={customer}
-        updateOrderStatus={updateOrderStatus}
-      />
-    );
-  }
-
   const totalEarnings = Object.values(driver.earnings || {}).map(e => Number(e)).reduce((sum, earning) => sum + earning, 0);
   const totalOwed = Object.values(driver.restaurantLedger || {}).map(a => Number(a)).reduce((sum, amount) => sum + amount, 0);
 
   return (
     <div className="space-y-12">
+
+      {/* Active Deliveries Section */}
+      {activeOrders.length > 0 && (
+        <div>
+          <h3 className="text-2xl font-semibold text-green-900 dark:text-gray-200 mb-4">Active Deliveries</h3>
+          <div className="space-y-8">
+            {activeOrders.map(order => {
+              const restaurant = restaurants.find(r => r.id === order.restaurantId);
+              const customer = customers.find(c => c.id === order.customerId);
+              return (
+                <ActiveDelivery
+                  key={order.id}
+                  order={order}
+                  restaurant={restaurant}
+                  customer={customer}
+                  updateOrderStatus={updateOrderStatus}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Stats and Balances */}
       <div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

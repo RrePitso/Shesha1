@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Order, Driver, PaymentMethod, FeeStructure } from '../types';
 import Spinner from './Spinner';
@@ -18,6 +19,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
 
   useEffect(() => {
     setIsVisible(true);
+    // Safely check for accepted payment methods
     if (driver.acceptedPaymentMethods && driver.acceptedPaymentMethods.length > 0) {
         const defaultMethod = driver.acceptedPaymentMethods[0];
         handleMethodSelect(defaultMethod);
@@ -27,6 +29,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
 
   const handleMethodSelect = (method: PaymentMethod) => {
     setSelectedMethod(method);
+    // Safely check for fee structure
     const feeStructure = driver.fees?.[method];
     if (feeStructure) {
         const calculatedFee = feeStructure.baseFee;
@@ -64,16 +67,20 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
             <div>
                 <h3 className="font-semibold text-green-900 dark:text-gray-200 mb-3">Select a Payment Method:</h3>
                 <div className="space-y-3">
-                    {driver.acceptedPaymentMethods.map(method => (
-                        <div 
-                            key={method}
-                            onClick={() => handleMethodSelect(method)} 
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method ? 'border-primary-orange bg-orange-50 dark:bg-orange-900/50' : 'border-gray-300 dark:border-gray-600 hover:border-secondary-orange'}`}>
-                            <p className="font-bold text-lg text-gray-900 dark:text-white">{method}</p>
-                            {driver.fees?.[method] && <p className="text-xs text-gray-500 dark:text-gray-400">Fee: R{driver.fees[method]?.baseFee.toFixed(2)}</p>}
-                        </div>
-                    ))}
-                    {driver.acceptedPaymentMethods.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400">This driver has not set up any payment methods.</p>}
+                    {/* Check if driver has configured payment methods before mapping */}
+                    {(driver.acceptedPaymentMethods && driver.acceptedPaymentMethods.length > 0) ? (
+                        driver.acceptedPaymentMethods.map(method => (
+                            <div 
+                                key={method}
+                                onClick={() => handleMethodSelect(method)} 
+                                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method ? 'border-primary-orange bg-orange-50 dark:bg-orange-900/50' : 'border-gray-300 dark:border-gray-600 hover:border-secondary-orange'}`}>
+                                <p className="font-bold text-lg text-gray-900 dark:text-white">{method}</p>
+                                {driver.fees?.[method] && <p className="text-xs text-gray-500 dark:text-gray-400">Fee: R{driver.fees[method]?.baseFee.toFixed(2)}</p>}
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-500 dark:text-gray-400">This driver has not set up any payment methods.</p>
+                    )}
                 </div>
             </div>
 
