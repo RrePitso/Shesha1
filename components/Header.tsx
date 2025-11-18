@@ -28,8 +28,7 @@ const Header: React.FC<HeaderProps> = ({ activeRole, isLoggedIn, onLogout }) => 
     <header className="bg-black shadow-md p-4 sticky top-0 z-50">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
-<img src="/1-822f66d1.ico" alt="iDelivery Logo" className="h-10 w-10 mr-2 rounded-full"/>
-            <h1 className="text-2xl font-bold text-white ml-2">iDelivery</h1>
+<img src="/2-822f66d1.ico" alt="iDelivery Logo" className="h-24 w-auto"/>
         </div>
         <div className="flex items-center space-x-4">
           {isLoggedIn && activeRole ? (

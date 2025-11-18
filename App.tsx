@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import Header from './components/Header';
 import CustomerView from './components/CustomerView';
@@ -5,6 +6,7 @@ import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
+import LandingPage from './components/LandingPage'; // Import the new LandingPage component
 import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod, FeeStructure } from './types';
 import * as db from './services/databaseService';
 import * as updater from './services/updateService';
@@ -30,6 +32,7 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'signup'>('signup');
+  const [showLandingPage, setShowLandingPage] = useState(true); // New state for landing page
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -47,6 +50,7 @@ const App: React.FC = () => {
         const role = await getUserRole(userAuth.uid);
         setUser(userAuth);
         setUserRole(role);
+        setShowLandingPage(false); // If user is logged in, don't show landing page
       } else {
         setUser(null);
         setUserRole(null);
@@ -129,6 +133,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
       await signOutUser();
+      setShowLandingPage(true); // Show landing page on logout
   }
 
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
@@ -223,6 +228,10 @@ const App: React.FC = () => {
       return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
     }
 
+    if (showLandingPage && !user) {
+      return <LandingPage onGetStarted={() => setShowLandingPage(false)} />;
+    }
+
     if (!user) {
       return authView === 'login' ? <Login onSignUpClick={() => setAuthView('signup')} /> : <SignUp onLoginClick={() => setAuthView('login')} />;
     }
@@ -250,7 +259,7 @@ const App: React.FC = () => {
   return (
     <ToastContext.Provider value={{ addToast }}>
       <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
-        <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} />
+        {user && <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} />}
         <main>{renderView()}</main>
         <div aria-live="assertive" className="fixed inset-0 flex flex-col items-end px-4 py-6 pointer-events-none sm:p-6 z-[100]">
           {toasts.map(toast => (
