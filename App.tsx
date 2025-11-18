@@ -5,11 +5,12 @@ import CustomerView from './components/CustomerView';
 import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
 import LandingPage from './components/LandingPage';
-import AuthModal from './components/AuthModal'; // Import the new AuthModal component
-import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod, FeeStructure } from './types';
+import AuthModal from './components/AuthModal';
+import SocialSignUp from './components/SocialSignUp';
+import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod } from './types';
 import * as db from './services/databaseService';
 import * as updater from './services/updateService';
-import { onAuthStateChangedListener, getUserRole, signOutUser } from './services/authService';
+import { onAuthStateChangedListener, getUserRole, signOutUser, createSocialUserProfile } from './services/authService';
 import { onValue, ref, get } from 'firebase/database';
 import { database } from './firebase';
 import Toast from './components/Toast';
@@ -30,12 +31,15 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // New state for the modal
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSocialSignUpOpen, setIsSocialSignUpOpen] = useState(false);
+  const [socialUser, setSocialUser] = useState<User | null>(null);
+  const [isCreatingSocialProfile, setIsCreatingSocialProfile] = useState(false);
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]); // All customers
-  const [customer, setCustomer] = useState<Customer | null>(null); // Logged in customer
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,17 +52,17 @@ const App: React.FC = () => {
         const role = await getUserRole(userAuth.uid);
         setUser(userAuth);
         setUserRole(role);
-        setIsAuthModalOpen(false); // Close modal on login
+        if(role) setIsSocialSignUpOpen(false); // If they have a role, they are not a new social user.
+        setIsAuthModalOpen(false);
       } else {
         setUser(null);
         setUserRole(null);
       }
       setIsAuthenticating(false);
     });
-
     return () => unsubscribe();
   }, []);
-  
+
   // Data fetching listener
   useEffect(() => {
     if (!user) {
@@ -69,27 +73,16 @@ const App: React.FC = () => {
       setCustomer(null);
       setOrders([]);
       return;
-    };
+    }
 
     setIsLoading(true);
 
-    const firebaseObjectToArray = (data: any, keyName: string = 'id') => {
+    const firebaseObjectToArray = (data: any) => {
         if (!data) return [];
-        return Object.keys(data).map(key => ({
-            [keyName]: key,
-            ...data[key],
-            reviews: data[key].reviews ? Object.values(data[key].reviews) : [],
-            menu: data[key].menu ? Object.values(data[key].menu) : [],
-            addresses: data[key].addresses ? Object.values(data[key].addresses) : [],
-            driverLedger: data[key].driverLedger || {},
-            restaurantLedger: data[key].restaurantLedger || {},
-            earnings: data[key].earnings || {},
-            acceptedPaymentMethods: data[key].acceptedPaymentMethods || [],
-            fees: data[key].fees || {},
-        }));
+        return Object.keys(data).map(key => ({ id: key, ...data[key] }));
     };
 
-    const unsubscribes: (() => void)[] = [
+    const unsubscribes = [
         onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
         onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))),
         onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))),
@@ -99,23 +92,17 @@ const App: React.FC = () => {
     if (userRole === UserRole.CUSTOMER) {
       unsubscribes.push(onValue(ref(database, `customers/${user.uid}`), (snapshot) => {
         const customerData = snapshot.val();
-        if (customerData) {
-            const addresses = customerData.addresses ? Object.values(customerData.addresses) : [];
-            setCustomer({ id: user.uid, ...customerData, addresses });
-        } else {
-            setCustomer(null);
-        }
+        setCustomer(customerData ? { id: user.uid, ...customerData } : null);
       }));
     } else {
-        setCustomer(null); 
+      setCustomer(null);
     }
 
-    // Unified loading state management
     Promise.all([
         get(ref(database, 'restaurants')),
         get(ref(database, 'drivers')),
         get(ref(database, 'orders')),
-        get(ref(database, 'customers')),
+        get(ref(database, 'customers'))
     ]).then(() => setIsLoading(false));
     
     return () => unsubscribes.forEach(unsubscribe => unsubscribe());
@@ -124,15 +111,40 @@ const App: React.FC = () => {
   const addToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(toast => toast.id !== id));
-    }, 4000);
+    setTimeout(() => setToasts(prev => prev.filter(toast => toast.id !== id)), 4000);
   };
 
   const handleLogout = async () => {
-      await signOutUser();
-  }
+    await signOutUser();
+  };
 
+  const handleSocialLogin = (user: User, isNew: boolean) => {
+    if (isNew) {
+      setSocialUser(user);
+      setIsAuthModalOpen(false);
+      setIsSocialSignUpOpen(true);
+    } else {
+      // Existing user logs in, auth state listener will handle the rest
+      setIsAuthModalOpen(false);
+    }
+  };
+
+  const handleSocialSignUp = async (user: User, role: UserRole, profileData: any) => {
+    setIsCreatingSocialProfile(true);
+    try {
+      await createSocialUserProfile(user, role, profileData);
+      // After profile creation, the auth state listener will pick up the new user and role
+      setIsSocialSignUpOpen(false);
+      setSocialUser(null);
+      addToast('Account created successfully!', 'success');
+    } catch (error) {
+      addToast('Error creating account. Please try again.', 'error');
+    } finally {
+      setIsCreatingSocialProfile(false);
+    }
+  };
+
+  // ... other handlers (handlePlaceOrder, etc.) remain the same
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
     if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
     const restaurant = restaurants.find(r => r.id === orderData.restaurantId);
@@ -226,7 +238,11 @@ const App: React.FC = () => {
     }
 
     if (!user) {
-        return <LandingPage onGetStarted={() => setIsAuthModalOpen(true)} />;
+      return <LandingPage onGetStarted={() => setIsAuthModalOpen(true)} />;
+    }
+
+    if (!userRole) { // This can happen for a moment for new social users
+      return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
     }
 
     switch (userRole) {
@@ -254,10 +270,17 @@ const App: React.FC = () => {
       <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
         {user && <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} />}
         <main>{renderView()}</main>
-        {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
+        {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onSocialLogin={handleSocialLogin} />}
+        {isSocialSignUpOpen && socialUser && (
+          <SocialSignUp 
+            socialUser={socialUser} 
+            onSocialSignUp={handleSocialSignUp} 
+            isLoading={isCreatingSocialProfile} 
+          />
+        )}
         <div aria-live="assertive" className="fixed inset-0 flex flex-col items-end px-4 py-6 pointer-events-none sm:p-6 z-[100]">
           {toasts.map(toast => (
-              <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToasts(p => p.filter(t => t.id !== toast.id))} />
+            <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToasts(p => p.filter(t => t.id !== toast.id))} />
           ))}
         </div>
       </div>
