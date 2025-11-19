@@ -73,8 +73,8 @@ export interface Driver {
   paymentPhoneNumber: string;
   vehicle: string;
   rating: number;
-  baseFee: number;
-  perMileRate: number;
+  deliveryAreas: { [area: string]: number };
+  fees: { [method in PaymentMethod]?: FeeStructure };
   acceptedPaymentMethods: PaymentMethod[];
   restaurantLedger: { [restaurantId: string]: number }; 
   earnings: { [orderId: string]: number };

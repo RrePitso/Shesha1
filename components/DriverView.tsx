@@ -18,8 +18,10 @@ interface DriverViewProps {
 
 const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, customers, updateOrderStatus, acceptOrder, onUpdateDriver }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editModalInitialTab, setEditModalInitialTab] = useState<'profile' | 'payments' | 'areas'>('profile');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showPaymentPrompt, setShowPaymentPrompt] = useState(false);
+  const [showAreaPrompt, setShowAreaPrompt] = useState(false);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -28,12 +30,16 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
         setShowOnboarding(true);
     }
 
-    const paymentPromptKey = `payment_prompt_driver_${driver.id}_shown`;
     const hasPaymentMethods = driver.acceptedPaymentMethods && driver.acceptedPaymentMethods.length > 0;
-    if (!hasPaymentMethods && !localStorage.getItem(paymentPromptKey)) {
+    const hasAreas = driver.deliveryAreas && Object.keys(driver.deliveryAreas).length > 0;
+
+    if (!hasPaymentMethods) {
         setTimeout(() => setShowPaymentPrompt(true), 1000);
+    } else if (!hasAreas) {
+        setTimeout(() => setShowAreaPrompt(true), 1000);
     }
-  }, [driver.id, driver.acceptedPaymentMethods]);
+
+  }, [driver.id, driver.acceptedPaymentMethods, driver.deliveryAreas]);
   
   const handleCloseOnboarding = () => {
     const onboardingKey = `onboarding_driver_${driver.id}_shown`;
@@ -42,16 +48,15 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
   };
 
   const handleSetUpPayments = () => {
-    const paymentPromptKey = `payment_prompt_driver_${driver.id}_shown`;
-    localStorage.setItem(paymentPromptKey, 'true');
     setShowPaymentPrompt(false);
+    setEditModalInitialTab('payments');
     setIsEditModalOpen(true);
   };
-
-  const handleClosePaymentPrompt = () => {
-    const paymentPromptKey = `payment_prompt_driver_${driver.id}_shown`;
-    localStorage.setItem(paymentPromptKey, 'true');
-    setShowPaymentPrompt(false);
+  
+  const handleSetUpAreas = () => {
+    setShowAreaPrompt(false);
+    setEditModalInitialTab('areas');
+    setIsEditModalOpen(true);
   };
 
   const handleAcceptOrder = async (orderId: string) => {
@@ -64,7 +69,6 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
     addToast('Profile updated successfully!', 'success');
   }
 
-  // Changed to handle multiple active orders
   const activeOrders = orders.filter(o => o.driverId === driver.id && o.status !== OrderStatus.DELIVERED);
   const availableOrders = orders.filter(o => o.status === OrderStatus.PENDING_DRIVER_ASSIGNMENT);
   const completedOrders = orders.filter(o => o.driverId === driver.id && o.status === OrderStatus.DELIVERED);
@@ -77,7 +81,10 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
         </div>
         <div className="flex items-center space-x-2">
             <button
-                onClick={() => setIsEditModalOpen(true)}
+                onClick={() => {
+                  setEditModalInitialTab('profile');
+                  setIsEditModalOpen(true);
+                }}
                 className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 py-2 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold flex items-center shadow active:scale-95"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
@@ -90,7 +97,7 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
         driver={driver}
         availableOrders={availableOrders}
         completedOrders={completedOrders}
-        activeOrders={activeOrders} // Pass the array of active orders
+        activeOrders={activeOrders}
         restaurants={restaurants}
         customers={customers}
         onAcceptOrder={handleAcceptOrder}
@@ -102,6 +109,7 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
             driver={driver}
             onSave={handleUpdateDriverProfile}
             onClose={() => setIsEditModalOpen(false)}
+            initialTab={editModalInitialTab}
           />
       )}
       {showOnboarding && (
@@ -117,17 +125,35 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
       {showPaymentPrompt && (
           <OnboardingModal
             title="Set Up Your Payment Methods"
-            onClose={handleClosePaymentPrompt}
+            onClose={() => setShowPaymentPrompt(false)}
           >
               <div className="text-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    To start accepting deliveries and get paid, you need to add the payment methods you accept (e.g., Cash, PayShap).
+                    To start accepting deliveries and get paid, you need to add the payment methods you accept.
                 </p>
                 <button
                     onClick={handleSetUpPayments}
                     className="bg-primary-orange text-white py-2 px-6 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold active:scale-95"
                 >
                     Set Up Payments
+                </button>
+              </div>
+          </OnboardingModal>
+      )}
+      {showAreaPrompt && (
+          <OnboardingModal
+            title="Define Your Delivery Zones"
+            onClose={() => setShowAreaPrompt(false)}
+          >
+              <div className="text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Next, set up the areas you deliver to and their corresponding base fees.
+                </p>
+                <button
+                    onClick={handleSetUpAreas}
+                    className="bg-primary-orange text-white py-2 px-6 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold active:scale-95"
+                >
+                    Set Up Areas
                 </button>
               </div>
           </OnboardingModal>

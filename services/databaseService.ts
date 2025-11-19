@@ -1,7 +1,7 @@
 
 import { get, ref, set, push, update, remove } from 'firebase/database';
 import { database } from '../firebase';
-import { Order, Restaurant, Driver, Customer, Review, Address } from '../types';
+import { Order, Restaurant, Driver, Customer, Review, Address, PaymentMethod } from '../types';
 
 // Generic function to fetch data
 const fetchData = async (path: string) => {
@@ -40,6 +40,18 @@ export const getDrivers = async (): Promise<Driver[]> => {
         reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
     }));
 };
+
+export const getCustomers = async (): Promise<Customer[]> => {
+    const data = await fetchData('customers');
+    if (!data) return [];
+    return Object.keys(data).map(id => ({
+        id,
+        ...data[id],
+        addresses: data[id].addresses ? Object.values(data[id].addresses) : [],
+        reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
+    }));
+};
+
 
 export const getOrders = async (): Promise<Order[]> => {
     const data = await fetchData('orders');
@@ -99,6 +111,19 @@ export const updateRestaurant = async (restaurantId: string, updates: Partial<Re
 export const updateCustomer = async (customerId: string, updates: Partial<Customer>) => {
     await update(ref(database, `customers/${customerId}`), updates);
 };
+
+export const findAvailableDriver = async (customerArea: string, paymentMethod: PaymentMethod): Promise<Driver | null> => {
+    const drivers = await getDrivers();
+    const availableDrivers = drivers.filter(driver => {
+        const servesArea = driver.deliveryAreas && driver.deliveryAreas[customerArea] !== undefined;
+        const acceptsPayment = driver.acceptedPaymentMethods && driver.acceptedPaymentMethods.includes(paymentMethod);
+        return servesArea && acceptsPayment;
+    });
+
+    // Simple selection strategy: return the first available driver
+    return availableDrivers.length > 0 ? availableDrivers[0] : null;
+};
+
 
 export const addCustomerAddress = async (customerId: string, address: Omit<Address, 'id'>): Promise<string> => {
     const newAddressRef = push(ref(database, `customers/${customerId}/addresses`));
