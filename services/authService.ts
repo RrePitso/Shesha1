@@ -88,6 +88,7 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
       const addressesRef = ref(database, `customers/${uid}/addresses`);
       const newAddressRef = push(addressesRef);
       const newAddressId = newAddressRef.key;
+      const addressInfo = profileData.addresses && profileData.addresses[0];
 
       userProfile = {
         ...baseProfile,
@@ -96,8 +97,8 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
         addresses: {
           [newAddressId!]: {
             id: newAddressId!,
-            label: 'Home',
-            details: profileData.address,
+            area: addressInfo ? addressInfo.area : '',
+            details: addressInfo ? addressInfo.details : '',
             isDefault: true,
           }
         },

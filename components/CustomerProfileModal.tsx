@@ -3,6 +3,7 @@ import { Customer, Address } from '../types';
 import { useToast } from '../App';
 import Spinner from './Spinner';
 import * as db from '../services/databaseService';
+import { ALICE_AREAS } from '../constants';
 
 interface CustomerProfileModalProps {
   customer: Customer;
@@ -12,16 +13,13 @@ interface CustomerProfileModalProps {
 const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, onClose }) => {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [newLabel, setNewLabel] = useState('');
+  const [newArea, setNewArea] = useState(ALICE_AREAS[0]);
   const [newDetails, setNewDetails] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAddressLoading, setIsAddressLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const { addToast } = useToast();
 
-  // **THE FINAL FIX**:
-  // Explicitly type the result of Object.values as Address[] so TypeScript understands the object shape.
-  // This resolves all "property does not exist on type 'unknown'" errors.
   const addressesArray: Address[] = customer.addresses ? Object.values(customer.addresses) : [];
 
   useEffect(() => {
@@ -45,13 +43,13 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
 
   const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLabel.trim() || !newDetails.trim()) {
+    if (!newArea.trim() || !newDetails.trim()) {
         addToast('Please fill in all address fields.', 'error');
         return;
     }
     setIsAddressLoading(true);
     const newAddress: Omit<Address, 'id'> = {
-      label: newLabel,
+      area: newArea,
       details: newDetails,
       isDefault: addressesArray.length === 0,
     };
@@ -60,7 +58,7 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
         await db.updateCustomerAddress(customer.id, newAddressId, { id: newAddressId });
     }
     addToast('Address added successfully!', 'success');
-    setNewLabel('');
+    setNewArea(ALICE_AREAS[0]);
     setNewDetails('');
     setIsAddressLoading(false);
   };
@@ -71,10 +69,8 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
   };
 
   const handleSetDefault = async (addressId: string) => {
-    // With addressesArray correctly typed, this function now works without type errors.
     const updates = {};
     for (const addr of addressesArray) {
-        // Set all addresses' isDefault to false, unless it's the one we're setting as default.
         updates[`/${addr.id}/isDefault`] = addr.id === addressId;
     }
     await db.updateData(`customers/${customer.id}/addresses`, updates);
@@ -107,10 +103,10 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
             </div>
             <h3 className="text-xl font-semibold text-green-900 dark:text-gray-200 mb-4 pt-6 border-t border-gray-200 dark:border-gray-700">Saved Addresses</h3>
             <div className="space-y-3 mb-6">
-                {addressesArray.map(address => ( // This mapping is now type-safe
+                {addressesArray.map(address => ( 
                     <div key={address.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md flex justify-between items-center">
                         <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{address.label} {address.isDefault && <span className="text-xs text-green-600 dark:text-green-400 font-normal">(Default)</span>}</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">{address.area} {address.isDefault && <span className="text-xs text-green-600 dark:text-green-400 font-normal">(Default)</span>}</p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">{address.details}</p>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
@@ -127,12 +123,21 @@ const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({ customer, o
             <h3 className="text-xl font-semibold text-green-900 dark:text-gray-200 pt-4 border-t border-gray-200 dark:border-gray-700">Add New Address</h3>
             <form onSubmit={handleAddAddress} className="mt-4 space-y-3">
                  <div>
-                    <label htmlFor="label" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Label</label>
-                    <input type="text" id="label" value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="e.g., Home, Work" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
+                    <label htmlFor="area" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Area</label>
+                    <select
+                        id="area"
+                        value={newArea}
+                        onChange={e => setNewArea(e.target.value)}
+                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"
+                    >
+                        {ALICE_AREAS.map(areaName => (
+                            <option key={areaName} value={areaName}>{areaName}</option>
+                        ))}
+                    </select>
                  </div>
                  <div>
                     <label htmlFor="details" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address Details</label>
-                    <input type="text" id="details" value={newDetails} onChange={e => setNewDetails(e.target.value)} placeholder="123 Main St, Anytown" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
+                    <input type="text" id="details" value={newDetails} onChange={e => setNewDetails(e.target.value)} placeholder="e.g. Street, House Number" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
                  </div>
                  <button type="submit" disabled={isAddressLoading} className="w-full bg-primary-orange text-white py-2 px-4 rounded-md hover:bg-secondary-orange transition-transform active:scale-95 disabled:bg-orange-300 flex justify-center">
                      {isAddressLoading ? <Spinner /> : 'Add Address'}

@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { signUpWithEmailPassword } from '../services/authService';
 import { UserRole } from '../types';
+import { ALICE_AREAS } from '../constants';
 
 const SignUp = ({ onLoginClick }) => {
   const [email, setEmail] = useState('');
@@ -12,7 +12,8 @@ const SignUp = ({ onLoginClick }) => {
 
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [address, setAddress] = useState('');
+  const [area, setArea] = useState(ALICE_AREAS[0]);
+  const [addressDetails, setAddressDetails] = useState('');
   const [cuisine, setCuisine] = useState('');
   const [restaurantAddress, setRestaurantAddress] = useState('');
   const [vehicle, setVehicle] = useState('');
@@ -23,7 +24,7 @@ const SignUp = ({ onLoginClick }) => {
     setIsLoading(true);
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+      setError('Password must be at least 6 characters long.');
       setIsLoading(false);
       return;
     }
@@ -35,7 +36,7 @@ const SignUp = ({ onLoginClick }) => {
         ...(role === UserRole.CUSTOMER && { 
             phoneNumber, 
             addresses: [
-              { id: 'default', label: 'Home', details: address, isDefault: true }
+              { id: 'default', area: area, details: addressDetails, isDefault: true }
             ]
         }),
         ...(role === UserRole.RESTAURANT && { 
@@ -71,7 +72,20 @@ const SignUp = ({ onLoginClick }) => {
         return (
           <>
             <InputField id="phone" type="tel" placeholder="Phone Number" value={phoneNumber} onChange={setPhoneNumber} required />
-            <InputField id="address" type="text" placeholder="Primary Address" value={address} onChange={setAddress} required />
+            <div className="relative">
+                <select 
+                    id="area"
+                    value={area} 
+                    onChange={(e) => setArea(e.target.value)} 
+                    required
+                    className="block w-full px-3 py-2 text-gray-900 placeholder-gray-500 bg-white border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-primary-orange focus:border-primary-orange sm:text-sm"
+                >
+                    {ALICE_AREAS.map(areaName => (
+                        <option key={areaName} value={areaName}>{areaName}</option>
+                    ))}
+                </select>
+            </div>
+            <InputField id="addressDetails" type="text" placeholder="Address Details (e.g. Street, House Number)" value={addressDetails} onChange={setAddressDetails} required />
           </>
         );
       case UserRole.RESTAURANT:

@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Customer, Address, Restaurant, MenuItem } from '../types';
+import { ALICE_AREAS } from '../constants';
 
 interface OrderConfirmationData {
   restaurant: Restaurant;
@@ -16,33 +16,34 @@ interface ConfirmOrderModalProps {
 }
 
 const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderData, onConfirm, onClose }) => {
-  const [selectedAddress, setSelectedAddress] = useState<string>('');
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [isNewAddress, setIsNewAddress] = useState(false);
-  const [newAddressLabel, setNewAddressLabel] = useState('');
+  const [newArea, setNewArea] = useState(ALICE_AREAS[0]);
   const [newAddressDetails, setNewAddressDetails] = useState('');
   
-  const addressesArray = customer.addresses || [];
+  const addressesArray: Address[] = customer.addresses ? Object.values(customer.addresses) : [];
 
   useEffect(() => {
     if (addressesArray.length > 0) {
       const defaultAddress = addressesArray.find(a => a.isDefault);
-      setSelectedAddress(defaultAddress ? defaultAddress.details : addressesArray[0].details);
+      setSelectedAddressId(defaultAddress ? defaultAddress.id : addressesArray[0].id);
       setIsNewAddress(false);
     } else {
       setIsNewAddress(true);
     }
-  }, [customer.addresses]);
+  }, [customer.addresses, addressesArray.length]);
 
   const handleConfirm = () => {
     if (isNewAddress) {
       if (newAddressDetails.trim()) {
-        onConfirm(newAddressDetails);
+        onConfirm(`${newArea}: ${newAddressDetails}`);
       } else {
         alert('Please fill in the address details.');
       }
     } else {
+      const selectedAddress = addressesArray.find(a => a.id === selectedAddressId);
       if (selectedAddress) {
-        onConfirm(selectedAddress);
+        onConfirm(`${selectedAddress.area}: ${selectedAddress.details}`);
       } else {
         alert('Please select an address.');
       }
@@ -91,23 +92,32 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
                 <h3 className="text-lg font-semibold text-green-900 dark:text-white mb-3">Delivery Address</h3>
                 {!isNewAddress && addressesArray.length > 0 ? (
                     <select
-                        value={selectedAddress}
-                        onChange={(e) => setSelectedAddress(e.target.value)}
+                        value={selectedAddressId}
+                        onChange={(e) => setSelectedAddressId(e.target.value)}
                         className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                         {addressesArray.map(addr => (
-                            <option key={addr.id} value={addr.details}>{addr.label}: {addr.details}</option>
+                            <option key={addr.id} value={addr.id}>{addr.area}: {addr.details}</option>
                         ))}
                     </select>
                 ) : (
                     <div className="space-y-3">
                         <div>
-                            <label htmlFor="label" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Label</label>
-                            <input type="text" id="label" value={newAddressLabel} onChange={e => setNewAddressLabel(e.target.value)} placeholder="e.g., Home, Work" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
+                            <label htmlFor="area" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Area</label>
+                            <select 
+                                id="area"
+                                value={newArea} 
+                                onChange={(e) => setNewArea(e.target.value)} 
+                                className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"
+                            >
+                                {ALICE_AREAS.map(areaName => (
+                                    <option key={areaName} value={areaName}>{areaName}</option>
+                                ))}
+                            </select>
                         </div>
                         <div>
                             <label htmlFor="details" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address Details</label>
-                            <input type="text" id="details" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} placeholder="123 Main St, Anytown" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
+                            <input type="text" id="details" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} placeholder="e.g. Street, House Number" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
                         </div>
                     </div>
                 )}

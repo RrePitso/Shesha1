@@ -91,7 +91,7 @@ export interface Customer {
 
 export interface Address {
   id: string;
-  label: string;
+  area: string;
   details: string;
   isDefault: boolean;
 }
