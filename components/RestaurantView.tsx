@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Order, OrderStatus, Restaurant, MenuItem, GeneratedMenuItem, Driver, Review } from '../types';
+import { Order, OrderStatus, Restaurant, MenuItem, GeneratedMenuItem, Driver, Review, Customer } from '../types';
 import OrderCard from './OrderCard';
 import MenuItemGenerator from './MenuItemGenerator';
 import MenuEditModal from './MenuEditModal';
@@ -12,6 +12,7 @@ interface RestaurantViewProps {
   orders: Order[];
   restaurant: Restaurant;
   drivers: Driver[];
+  customers: Customer[];
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateMenu: (menu: MenuItem[]) => void;
   settleLedger: (driverId: string) => Promise<void>;
@@ -45,7 +46,7 @@ const ToggleSwitch: React.FC<{ isAvailable: boolean; onToggle: () => void }> = (
     </button>
 );
 
-const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, drivers, updateOrderStatus, updateMenu, settleLedger, onUpdateRestaurant }) => {
+const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, drivers, customers, updateOrderStatus, updateMenu, settleLedger, onUpdateRestaurant }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [itemToEdit, setItemToEdit] = useState<MenuItem | null>(null);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -188,19 +189,24 @@ const RestaurantView: React.FC<RestaurantViewProps> = ({ orders, restaurant, dri
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 {restaurant.reviews && restaurant.reviews.length > 0 ? (
                     <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {restaurant.reviews.map((review: Review, index: number) => (
-                            <li key={index} className="p-4">
-                                <div className="flex justify-between items-start">
-                                    <p className="font-semibold text-gray-900 dark:text-white">From: {review.customerName}</p>
-                                    <StarDisplay rating={review.rating} />
-                                </div>
-                                {review.comment && (
-                                    <blockquote className="mt-2 pl-4 border-l-4 border-gray-200 dark:border-gray-600">
-                                        <p className="text-gray-600 dark:text-gray-400 italic">"{review.comment}"</p>
-                                    </blockquote>
-                                )}
-                            </li>
-                        ))}
+                        {restaurant.reviews.map((review: Review) => {
+                            const reviewingCustomer = customers.find(c => c.id === review.customerId);
+                            const reviewerName = review.customerName || reviewingCustomer?.name || 'Anonymous';
+
+                            return (
+                                <li key={review.id} className="p-4">
+                                    <div className="flex justify-between items-start">
+                                        <p className="font-semibold text-gray-900 dark:text-white">From: {reviewerName}</p>
+                                        <StarDisplay rating={review.rating} />
+                                    </div>
+                                    {review.comment && (
+                                        <blockquote className="mt-2 pl-4 border-l-4 border-gray-200 dark:border-gray-600">
+                                            <p className="text-gray-600 dark:text-gray-400 italic">"{review.comment}"</p>
+                                        </blockquote>
+                                    )}
+                                </li>
+                            );
+                        })}
                     </ul>
                 ) : (
                     <p className="text-gray-500 dark:text-gray-400 p-6 text-center">You have not received any reviews yet.</p>

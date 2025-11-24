@@ -1,4 +1,3 @@
-
 import { get, ref, set, push, update, remove } from 'firebase/database';
 import { database } from '../firebase';
 import { Order, Restaurant, Driver, Customer, Review, Address, PaymentMethod } from '../types';
@@ -18,6 +17,19 @@ export const updateData = async (path: string, data: object) => {
     await update(ref(database, path), data);
 };
 
+// --- Helper to safely parse lists ---
+// 1. Filters out junk primitives (like "rating": 5 mixed in the list).
+// 2. Assigns the Firebase key as 'id' if the object is missing it (fixes past reviews).
+const parseFirebaseList = (data: any): any[] => {
+    if (!data) return [];
+    return Object.entries(data)
+        .filter(([_, value]) => value && typeof value === 'object') // Remove junk like numbers/strings
+        .map(([key, value]) => ({
+            id: key, // Use key as ID ensuring it always exists
+            ...(value as object)
+        }));
+};
+
 // --- Getters ---
 
 export const getRestaurants = async (): Promise<Restaurant[]> => {
@@ -26,7 +38,7 @@ export const getRestaurants = async (): Promise<Restaurant[]> => {
     return Object.keys(data).map(id => ({
         id,
         ...data[id],
-        reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
+        reviews: parseFirebaseList(data[id].reviews),
         menu: data[id].menu ? Object.values(data[id].menu) : [],
     }));
 };
@@ -37,7 +49,7 @@ export const getDrivers = async (): Promise<Driver[]> => {
     return Object.keys(data).map(id => ({
         id,
         ...data[id],
-        reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
+        reviews: parseFirebaseList(data[id].reviews),
     }));
 };
 
@@ -48,7 +60,7 @@ export const getCustomers = async (): Promise<Customer[]> => {
         id,
         ...data[id],
         addresses: data[id].addresses ? Object.values(data[id].addresses) : [],
-        reviews: data[id].reviews ? Object.values(data[id].reviews) : [],
+        reviews: parseFirebaseList(data[id].reviews),
     }));
 };
 
@@ -70,22 +82,39 @@ export const getCustomer = async (id: string): Promise<Customer | null> => {
         id, 
         ...data,
         addresses: data.addresses ? Object.values(data.addresses) : [],
+        reviews: parseFirebaseList(data.reviews),
     } as Customer;
 };
 
 export const getDriver = async (id: string): Promise<Driver | null> => {
     const data = await fetchData(`drivers/${id}`);
-    return data ? { id, ...data } as Driver : null;
+    if (!data) return null;
+    return { 
+        id, 
+        ...data,
+        reviews: parseFirebaseList(data.reviews),
+    } as Driver;
 };
 
 export const getRestaurant = async (id: string): Promise<Restaurant | null> => {
     const data = await fetchData(`restaurants/${id}`);
-    return data ? { id, ...data } as Restaurant : null;
+    if (!data) return null;
+    return { 
+        id, 
+        ...data,
+        reviews: parseFirebaseList(data.reviews),
+        menu: data.menu ? Object.values(data.menu) : []
+    } as Restaurant;
 };
 
 export const getOrder = async (id: string): Promise<Order | null> => {
     const data = await fetchData(`orders/${id}`);
-    return data ? { id, ...data } as Order : null;
+    if (!data) return null;
+    return { 
+        id, 
+        ...data,
+        items: data.items ? Object.values(data.items) : [] 
+    } as Order;
 };
 
 // --- Setters / Updaters ---

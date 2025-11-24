@@ -63,17 +63,14 @@ const App: React.FC = () => {
           try {
             role = await getUserRole(userAuth.uid);
           } catch (err) {
-            // Could be a permission error or transient failure. Log and continue.
             console.error('getUserRole failed:', err);
-            // keep role as null — social signup flow will handle new users
           }
 
           setUser(userAuth);
           setUserRole(role);
-          if (role) setIsSocialSignUpOpen(false); // If they have a role, they are not a new social user.
+          if (role) setIsSocialSignUpOpen(false); 
           setIsAuthModalOpen(false);
 
-          // Request permission for notifications. Do not let token write errors block auth flow.
           try {
             await requestPermissionAndToken(userAuth.uid);
           } catch (err) {
@@ -108,15 +105,30 @@ const App: React.FC = () => {
 
     setIsLoading(true);
 
+    const parseReviewsOnly = (item: any) => {
+        if (item && item.reviews && typeof item.reviews === 'object') {
+            item.reviews = Object.entries(item.reviews)
+                .filter(([_, value]) => value && typeof value === 'object')
+                .map(([key, value]) => ({ id: key, ...(value as object) }));
+        }
+        return item;
+    };
+
     const firebaseObjectToArray = (data: any) => {
         if (!data) return [];
-        return Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        return Object.keys(data).map(key => parseReviewsOnly({ id: key, ...data[key] }));
     };
 
     const unsubscribes: Array<() => void> = [
       onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
       onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))),
-      onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))),
+      onValue(ref(database, 'orders'), (snapshot) => {
+          const data = snapshot.val();
+          if (!data) return setOrders([]);
+          // Orders do not have reviews, so they are processed normally.
+          const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+          setOrders(list);
+      }),
       onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
     ];
 
@@ -124,7 +136,7 @@ const App: React.FC = () => {
     if (userRole === UserRole.CUSTOMER) {
       unsubscribes.push(onValue(ref(database, `customers/${user.uid}`), (snapshot) => {
         const customerData = snapshot.val();
-        setCustomer(customerData ? { id: user.uid, ...customerData } : null);
+        setCustomer(customerData ? parseReviewsOnly({ id: user.uid, ...customerData }) : null);
       }));
     } else {
       setCustomer(null);
@@ -133,7 +145,7 @@ const App: React.FC = () => {
     if (userRole === UserRole.DRIVER) {
       unsubscribes.push(onValue(ref(database, `drivers/${user.uid}`), (snapshot) => {
         const driverData = snapshot.val();
-        setDriver(driverData ? { id: user.uid, ...driverData } : null);
+        setDriver(driverData ? parseReviewsOnly({ id: user.uid, ...driverData }) : null);
       }));
     } else {
       setDriver(null);
@@ -142,13 +154,12 @@ const App: React.FC = () => {
     if (userRole === UserRole.RESTAURANT) {
       unsubscribes.push(onValue(ref(database, `restaurants/${user.uid}`), (snapshot) => {
         const restaurantData = snapshot.val();
-        setRestaurant(restaurantData ? { id: user.uid, ...restaurantData } : null);
+        setRestaurant(restaurantData ? parseReviewsOnly({ id: user.uid, ...restaurantData }) : null);
       }));
     } else {
       setRestaurant(null);
     }
 
-    // Perform an initial read to ensure initial data is available — handle permission errors gracefully
     Promise.all([
       get(ref(database, 'restaurants')),
       get(ref(database, 'drivers')),
@@ -157,7 +168,6 @@ const App: React.FC = () => {
     ])
       .catch((err) => {
         console.error('Initial data fetch failed:', err);
-        // Show a non-blocking toast so user can see there's a loading problem
         addToast('Failed to load some app data. Some features may be unavailable.', 'error');
       })
       .finally(() => {
@@ -182,7 +192,6 @@ const App: React.FC = () => {
       setIsAuthModalOpen(false);
       setIsSocialSignUpOpen(true);
     } else {
-      // Existing user logs in, auth state listener will handle the rest
       setIsAuthModalOpen(false);
     }
   };
@@ -203,7 +212,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ... other handlers (handlePlaceOrder, etc.) remain the same
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
     if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
     const restaurantObj = restaurants.find(r => r.id === orderData.restaurantId);
@@ -333,7 +341,7 @@ const App: React.FC = () => {
       return <LandingPage onGetStarted={() => setIsAuthModalOpen(true)} />;
     }
 
-    if (!userRole) { // This can happen for a moment for new social users
+    if (isSocialSignUpOpen || !userRole) { 
       return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
     }
 
@@ -348,7 +356,7 @@ const App: React.FC = () => {
 
       case UserRole.RESTAURANT:
         if (!restaurant) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        return <RestaurantView {...{restaurant, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
+        return <RestaurantView {...{restaurant, customers, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
       
       default:
         return <div className="flex justify-center items-center h-screen"><p>Unrecognized role.</p></div>;

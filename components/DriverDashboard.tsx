@@ -181,10 +181,14 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
               {driver.reviews && driver.reviews.length > 0 ? (
                   <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {driver.reviews.map((review, index) => (
-                          <li key={index} className="p-4">
+                      {driver.reviews.map(review => {
+                        const reviewingCustomer = customers.find(c => c.id === review.customerId);
+                        const reviewerName = review.customerName || reviewingCustomer?.name || 'Anonymous';
+                        
+                        return (
+                          <li key={review.id} className="p-4">
                               <div className="flex justify-between items-start">
-                                  <p className="font-semibold text-gray-900 dark:text-white">From: {review.customerName}</p>
+                                  <p className="font-semibold text-gray-900 dark:text-white">From: {reviewerName}</p>
                                   <StarDisplay rating={review.rating} />
                               </div>
                               {review.comment && (
@@ -193,7 +197,8 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
                                   </blockquote>
                               )}
                           </li>
-                      ))}
+                        );
+                      })}
                   </ul>
               ) : (
                   <p className="text-gray-500 dark:text-gray-400 p-6 text-center">You have not received any reviews yet.</p>
