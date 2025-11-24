@@ -6,73 +6,90 @@ const admin = require("firebase-admin");
 const messaging_1 = require("firebase-admin/messaging");
 admin.initializeApp();
 const db = admin.database();
+const firestore = admin.firestore();
+// Helper to fetch user data (including email) based on their role and ID
+const getUserData = async (userId, role) => {
+    try {
+        const userSnap = await db.ref(`/${role}/${userId}`).once("value");
+        const userData = userSnap.val();
+        const email = (userData === null || userData === void 0 ? void 0 : userData.email) || null;
+        const tokenSnap = await db.ref(`/fcmTokens/${userId}/token`).once("value");
+        const fcmToken = tokenSnap.val() || null;
+        console.log(`Data for ${role.slice(0, -1)} ${userId}: Email=${email}, Token=${fcmToken ? "Found" : "Not Found"}`);
+        return { email, fcmToken };
+    }
+    catch (err) {
+        console.error(`Error fetching data for ${role.slice(0, -1)} ${userId}:`, err);
+        return { email: null, fcmToken: null };
+    }
+};
 exports.onorderstatuschange = (0, database_1.onValueUpdated)("/orders/{orderId}/status", async (event) => {
     const orderId = event.params.orderId;
     const newStatus = event.data.after.val();
-    console.log(`[${orderId}] Starting execution for status change to: ${newStatus}`);
+    console.log(`[${orderId}] Status changed to: ${newStatus}. Initiating notifications.`);
     const orderSnap = await db.ref(`/orders/${orderId}`).once("value");
     const order = orderSnap.val();
     if (!order) {
-        console.error(`[${orderId}] Critical Error: Order data not found after status update.`);
+        console.error(`[${orderId}] Critical Error: Order data not found.`);
         return;
     }
-    const userIds = [];
+    const userPromises = [];
     if (order.customerId)
-        userIds.push(order.customerId);
+        userPromises.push(getUserData(order.customerId, "customers"));
     if (order.driverId)
-        userIds.push(order.driverId);
+        userPromises.push(getUserData(order.driverId, "drivers"));
     if (order.restaurantId)
-        userIds.push(order.restaurantId);
-    if (userIds.length === 0) {
-        console.log(`[${orderId}] No users (customer, driver, restaurant) associated with this order. Exiting.`);
+        userPromises.push(getUserData(order.restaurantId, "restaurants"));
+    if (userPromises.length === 0) {
+        console.log(`[${orderId}] No users associated with this order. Exiting.`);
         return;
     }
-    console.log(`[${orderId}] Identified users for notification:`, userIds);
-    const tokens = [];
-    for (const userId of userIds) {
+    const userData = await Promise.all(userPromises);
+    const emails = userData.map(u => u.email).filter((e) => e !== null);
+    const tokens = userData.map(u => u.fcmToken).filter((t) => t !== null);
+    // --- Email Logic ---
+    if (emails.length > 0) {
+        const emailPayload = {
+            to: emails,
+            message: {
+                subject: `Order Update: ${orderId}`,
+                text: `The status of your order #${orderId} has been updated to: ${newStatus}`,
+                html: `<p>The status of your order #${orderId} has been updated to: <strong>${newStatus}</strong></p>`,
+            },
+        };
         try {
-            const tokenSnap = await db.ref(`/fcmTokens/${userId}/token`).once("value");
-            const token = tokenSnap.val();
-            if (token) {
-                console.log(`[${orderId}] Found token for user ${userId}: ${token.substring(0, 20)}...`);
-                tokens.push(token);
+            const writeResult = await firestore.collection("mail").add(emailPayload);
+            console.log(`[${orderId}] Successfully staged email to ${emails.length} recipients (Firestore ID: ${writeResult.id})`);
+        }
+        catch (error) {
+            console.error(`[${orderId}] CRITICAL: Failed to write email document to Firestore:`, error);
+        }
+    }
+    else {
+        console.log(`[${orderId}] No emails found for this order.`);
+    }
+    // --- Push Notification Logic ---
+    if (tokens.length > 0) {
+        const pushPayload = {
+            notification: {
+                title: "Order Status Update",
+                body: `Your order status is now: ${newStatus}`,
+            },
+            tokens: tokens,
+        };
+        try {
+            const response = await (0, messaging_1.getMessaging)().sendEachForMulticast(pushPayload);
+            console.log(`[${orderId}] Sent ${response.successCount} push notifications successfully.`);
+            if (response.failureCount > 0) {
+                console.warn(`[${orderId}] Failed to send ${response.failureCount} push notifications.`);
             }
-            else {
-                console.warn(`[${orderId}] No FCM token found for user: ${userId}`);
-            }
         }
-        catch (err) {
-            console.error(`[${orderId}] Error fetching token for user ${userId}:`, err);
+        catch (error) {
+            console.error(`[${orderId}] CRITICAL: Failed to send push notifications:`, error);
         }
     }
-    if (tokens.length === 0) {
-        console.error(`[${orderId}] No valid FCM tokens could be found for any of the ${userIds.length} users. Cannot send notification.`);
-        return;
-    }
-    const message = {
-        notification: {
-            title: "Order Status Update",
-            body: `Your order status has been updated to: ${newStatus}`,
-        },
-        tokens: tokens,
-    };
-    console.log(`[${orderId}] Attempting to send notification to ${tokens.length} device(s). Payload:`, JSON.stringify(message.notification));
-    try {
-        const response = await (0, messaging_1.getMessaging)().sendEachForMulticast(message);
-        console.log(`[${orderId}] Successfully sent message. ${response.successCount} messages were sent successfully.`);
-        if (response.failureCount > 0) {
-            const failedTokens = [];
-            response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                    failedTokens.push(tokens[idx]);
-                    console.error(`[${orderId}] Failure sending to token ${tokens[idx]}:`, resp.error);
-                }
-            });
-            console.log(`[${orderId}] List of tokens that caused failures: ${failedTokens.join(', ')}`);
-        }
-    }
-    catch (error) {
-        console.error(`[${orderId}] CRITICAL: The entire 'sendEachForMulticast' operation failed:`, error);
+    else {
+        console.log(`[${orderId}] No FCM tokens found for this order.`);
     }
 });
 //# sourceMappingURL=index.js.map
