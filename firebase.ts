@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, OAuthProvider } from "firebase/auth";
 import { getDatabase } from "firebase/database";
+import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,6 +18,7 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const database = getDatabase(app);
+export const messaging = getMessaging(app);
 
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');

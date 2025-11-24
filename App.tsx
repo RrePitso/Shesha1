@@ -16,6 +16,7 @@ import { database } from './firebase';
 import Toast from './components/Toast';
 import Spinner from './components/Spinner';
 import { User } from 'firebase/auth';
+import { requestPermissionAndToken } from './services/notificationService';
 
 // Toast Context
 type ToastMessage = { id: number; message: string; type: 'success' | 'error'; };
@@ -56,6 +57,7 @@ const App: React.FC = () => {
         setUserRole(role);
         if(role) setIsSocialSignUpOpen(false); // If they have a role, they are not a new social user.
         setIsAuthModalOpen(false);
+        requestPermissionAndToken(userAuth.uid); // Request permission for notifications
       } else {
         setUser(null);
         setUserRole(null);
