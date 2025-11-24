@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import Header from './components/Header';
 import CustomerView from './components/CustomerView';
@@ -47,22 +46,48 @@ const App: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Auth state listener
+  // addToast moved above effects so it can be used by them if needed
+  const addToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(toast => toast.id !== id)), 4000);
+  };
+
+  // Auth state listener (defensive: catches DB permission errors and ensures flags are cleared)
   useEffect(() => {
     const unsubscribe = onAuthStateChangedListener(async (userAuth) => {
       setIsAuthenticating(true);
-      if (userAuth) {
-        const role = await getUserRole(userAuth.uid);
-        setUser(userAuth);
-        setUserRole(role);
-        if(role) setIsSocialSignUpOpen(false); // If they have a role, they are not a new social user.
-        setIsAuthModalOpen(false);
-        requestPermissionAndToken(userAuth.uid); // Request permission for notifications
-      } else {
-        setUser(null);
-        setUserRole(null);
+      try {
+        if (userAuth) {
+          let role: UserRole | null = null;
+          try {
+            role = await getUserRole(userAuth.uid);
+          } catch (err) {
+            // Could be a permission error or transient failure. Log and continue.
+            console.error('getUserRole failed:', err);
+            // keep role as null — social signup flow will handle new users
+          }
+
+          setUser(userAuth);
+          setUserRole(role);
+          if (role) setIsSocialSignUpOpen(false); // If they have a role, they are not a new social user.
+          setIsAuthModalOpen(false);
+
+          // Request permission for notifications. Do not let token write errors block auth flow.
+          try {
+            await requestPermissionAndToken(userAuth.uid);
+          } catch (err) {
+            console.warn('requestPermissionAndToken failed (non-fatal):', err);
+          }
+        } else {
+          setUser(null);
+          setUserRole(null);
+        }
+      } catch (err) {
+        console.error('Error in auth state handler:', err);
+      } finally {
+        setIsAuthenticating(false);
       }
-      setIsAuthenticating(false);
     });
     return () => unsubscribe();
   }, []);
@@ -88,11 +113,11 @@ const App: React.FC = () => {
         return Object.keys(data).map(key => ({ id: key, ...data[key] }));
     };
 
-    const unsubscribes = [
-        onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
-        onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))),
-        onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))),
-        onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
+    const unsubscribes: Array<() => void> = [
+      onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
+      onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))),
+      onValue(ref(database, 'orders'), (snapshot) => setOrders(firebaseObjectToArray(snapshot.val()))),
+      onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
     ];
 
     // Fetch specific user profile based on role
@@ -123,24 +148,32 @@ const App: React.FC = () => {
       setRestaurant(null);
     }
 
+    // Perform an initial read to ensure initial data is available — handle permission errors gracefully
     Promise.all([
-        get(ref(database, 'restaurants')),
-        get(ref(database, 'drivers')),
-        get(ref(database, 'orders')),
-        get(ref(database, 'customers'))
-    ]).then(() => setIsLoading(false));
-    
-    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+      get(ref(database, 'restaurants')),
+      get(ref(database, 'drivers')),
+      get(ref(database, 'orders')),
+      get(ref(database, 'customers'))
+    ])
+      .catch((err) => {
+        console.error('Initial data fetch failed:', err);
+        // Show a non-blocking toast so user can see there's a loading problem
+        addToast('Failed to load some app data. Some features may be unavailable.', 'error');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+
+    return () => unsubscribes.forEach(unsubscribe => { try { unsubscribe(); } catch (e) { /* ignore */ } });
   }, [user, userRole]);
 
-  const addToast = (message: string, type: 'success' | 'error' = 'success') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(toast => toast.id !== id)), 4000);
-  };
-
   const handleLogout = async () => {
-    await signOutUser();
+    try {
+      await signOutUser();
+    } catch (err) {
+      console.error('Logout failed:', err);
+      addToast('Logout failed. Please try again.', 'error');
+    }
   };
 
   const handleSocialLogin = (user: User, isNew: boolean) => {
@@ -163,6 +196,7 @@ const App: React.FC = () => {
       setSocialUser(null);
       addToast('Account created successfully!', 'success');
     } catch (error) {
+      console.error('createSocialUserProfile failed:', error);
       addToast('Error creating account. Please try again.', 'error');
     } finally {
       setIsCreatingSocialProfile(false);
@@ -172,38 +206,53 @@ const App: React.FC = () => {
   // ... other handlers (handlePlaceOrder, etc.) remain the same
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
     if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
-    const restaurant = restaurants.find(r => r.id === orderData.restaurantId);
+    const restaurantObj = restaurants.find(r => r.id === orderData.restaurantId);
     const newOrder: Omit<Order, 'id'> = {
         ...orderData,
         status: OrderStatus.PENDING_CONFIRMATION,
-        deliveryFee: 0, 
-        total: orderData.foodTotal, 
+        deliveryFee: 0,
+        total: orderData.foodTotal,
         customerAddress: address,
-        restaurantAddress: restaurant?.address || 'N/A',
+        restaurantAddress: restaurantObj?.address || 'N/A',
     };
-    await db.createOrder(newOrder);
-    addToast('Order placed successfully! Waiting for restaurant confirmation.', 'success');
+    try {
+      await db.createOrder(newOrder);
+      addToast('Order placed successfully! Waiting for restaurant confirmation.', 'success');
+    } catch (err) {
+      console.error('createOrder failed:', err);
+      addToast('Failed to place order. Please try again.', 'error');
+    }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    if (newStatus === OrderStatus.DELIVERED) {
-        if (order.paymentMethod === PaymentMethod.PAYSHAP) {
-            await updater.updateDriverEarningsOnDelivery(orderId);
-        } 
-        else if (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT) {
-            await updater.updateLedgersAndEarningsOnCashDelivery(orderId);
-        }
-    }
+    try {
+      if (newStatus === OrderStatus.DELIVERED) {
+          if (order.paymentMethod === PaymentMethod.PAYSHAP) {
+              await updater.updateDriverEarningsOnDelivery(orderId);
+          }
+          else if (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT) {
+              await updater.updateLedgersAndEarningsOnCashDelivery(orderId);
+          }
+      }
 
-    await db.updateOrder(orderId, { status: newStatus });
+      await db.updateOrder(orderId, { status: newStatus });
+    } catch (err) {
+      console.error('updateOrderStatus failed:', err);
+      addToast('Failed to update order status.', 'error');
+    }
  };
   
   const handleAcceptOrder = async (orderId: string, driverId: string) => {
-    await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
-    addToast('Order assigned to you! Time to pick it up.', 'success');
+    try {
+      await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
+      addToast('Order assigned to you! Time to pick it up.', 'success');
+    } catch (err) {
+      console.error('handleAcceptOrder failed:', err);
+      addToast('Failed to accept order.', 'error');
+    }
   };
 
   const handleUpdateDriver = (updatedDriver: Driver) => db.updateDriver(updatedDriver.id, updatedDriver);
@@ -220,41 +269,59 @@ const App: React.FC = () => {
   
   const handleDriverReview = async (orderId: string, driverId: string, rating: number, comment: string) => {
     if (!customer) return;
-    await db.addDriverReview(driverId, {
-      orderId, 
-      customerId: customer.id, 
-      customerName: customer.name, 
-      rating, 
-      comment,
-      reviewer: 'customer',
-      reviewee: 'driver',
-      revieweeId: driverId,
-    });
-    await db.updateOrder(orderId, { isDriverReviewed: true });
-    await updater.recalculateDriverRating(driverId);
+    try {
+      await db.addDriverReview(driverId, {
+        orderId, 
+        customerId: customer.id, 
+        customerName: customer.name, 
+        rating, 
+        comment,
+        reviewer: 'customer',
+        reviewee: 'driver',
+        revieweeId: driverId,
+      });
+      await db.updateOrder(orderId, { isDriverReviewed: true });
+      await updater.recalculateDriverRating(driverId);
+      addToast('Driver review submitted. Thank you!', 'success');
+    } catch (err) {
+      console.error('handleDriverReview failed:', err);
+      addToast('Failed to submit review.', 'error');
+    }
   };
 
   const handleRestaurantReview = async (orderId: string, restaurantId: string, rating: number, comment: string) => {
     if (!customer) return;
-    await db.addRestaurantReview(restaurantId, {
-      orderId, 
-      customerId: customer.id, 
-      customerName: customer.name, 
-      rating, 
-      comment,
-      reviewer: 'customer',
-      reviewee: 'restaurant',
-      revieweeId: restaurantId,
-    });
-    await db.updateOrder(orderId, { isRestaurantReviewed: true });
-    await updater.recalculateRestaurantRating(restaurantId);
+    try {
+      await db.addRestaurantReview(restaurantId, {
+        orderId, 
+        customerId: customer.id, 
+        customerName: customer.name, 
+        rating, 
+        comment,
+        reviewer: 'customer',
+        reviewee: 'restaurant',
+        revieweeId: restaurantId,
+      });
+      await db.updateOrder(orderId, { isRestaurantReviewed: true });
+      await updater.recalculateRestaurantRating(restaurantId);
+      addToast('Restaurant review submitted. Thank you!', 'success');
+    } catch (err) {
+      console.error('handleRestaurantReview failed:', err);
+      addToast('Failed to submit review.', 'error');
+    }
   };
   
   const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[]) => db.updateRestaurant(restaurantId, { menu: newMenu });
 
   const handleSettleLedger = async (restaurantId: string, driverId: string) => {
-    await updater.settleLedger(restaurantId, driverId);
-  }
+    try {
+      await updater.settleLedger(restaurantId, driverId);
+      addToast('Ledger settled successfully.', 'success');
+    } catch (err) {
+      console.error('handleSettleLedger failed:', err);
+      addToast('Failed to settle ledger.', 'error');
+    }
+  };
 
 
   const renderView = () => {
