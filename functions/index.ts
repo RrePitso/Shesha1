@@ -11,17 +11,17 @@ const firestore = admin.firestore();
 // Helper to fetch user data (including email) based on their role and ID
 const getUserData = async (userId: string, role: string): Promise<{email: string | null, fcmToken: string | null}> => {
     try {
-        const userSnap = await db.ref(`/${role}/${userId}`).once("value");
+        const userSnap = await db.ref(`/${role}s/${userId}`).once("value");
         const userData = userSnap.val();
         const email = userData?.email || null;
 
-        const tokenSnap = await db.ref(`/fcmTokens/${userId}/token`).once("value");
-        const fcmToken = tokenSnap.val() || null;
+        const tokenSnap = await db.ref(`/fcmTokens/${userId}`).once("value");
+        const fcmToken = tokenSnap.val()?.token || null;
         
-        console.log(`Data for ${role.slice(0, -1)} ${userId}: Email=${email}, Token=${fcmToken ? "Found" : "Not Found"}`);
+        console.log(`Data for ${role} ${userId}: Email=${email}, Token=${fcmToken ? "Found" : "Not Found"}`);
         return { email, fcmToken };
     } catch (err) {
-        console.error(`Error fetching data for ${role.slice(0, -1)} ${userId}:`, err);
+        console.error(`Error fetching data for ${role} ${userId}:`, err);
         return { email: null, fcmToken: null };
     }
 };
@@ -41,9 +41,9 @@ export const onorderstatuschange = onValueUpdated("/orders/{orderId}/status", as
     }
 
     const userPromises: Promise<{email: string | null, fcmToken: string | null}>[] = [];
-    if (order.customerId) userPromises.push(getUserData(order.customerId, "customers"));
-    if (order.driverId) userPromises.push(getUserData(order.driverId, "drivers"));
-    if (order.restaurantId) userPromises.push(getUserData(order.restaurantId, "restaurants"));
+    if (order.customerId) userPromises.push(getUserData(order.customerId, "customer"));
+    if (order.driverId) userPromises.push(getUserData(order.driverId, "driver"));
+    if (order.restaurantId) userPromises.push(getUserData(order.restaurantId, "restaurant"));
 
     if (userPromises.length === 0) {
         console.log(`[${orderId}] No users associated with this order. Exiting.`);
