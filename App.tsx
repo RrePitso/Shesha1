@@ -15,7 +15,7 @@ import { database } from './firebase';
 import Toast from './components/Toast';
 import Spinner from './components/Spinner';
 import { User } from 'firebase/auth';
-import { requestPermissionAndToken } from './services/notificationService';
+import { requestPermissionAndToken, onForegroundMessage } from './services/notificationService'; // Import the new function
 
 // Toast Context
 type ToastMessage = { id: number; message: string; type: 'success' | 'error'; };
@@ -46,14 +46,18 @@ const App: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // addToast moved above effects so it can be used by them if needed
   const addToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(toast => toast.id !== id)), 4000);
   };
 
-  // Auth state listener (defensive: catches DB permission errors and ensures flags are cleared)
+  // Setup foreground message listener once when the app loads
+  useEffect(() => {
+    onForegroundMessage(addToast);
+  }, []);
+
+  // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChangedListener(async (userAuth) => {
       setIsAuthenticating(true);
@@ -125,14 +129,12 @@ const App: React.FC = () => {
       onValue(ref(database, 'orders'), (snapshot) => {
           const data = snapshot.val();
           if (!data) return setOrders([]);
-          // Orders do not have reviews, so they are processed normally.
           const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
           setOrders(list);
       }),
       onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
     ];
 
-    // Fetch specific user profile based on role
     if (userRole === UserRole.CUSTOMER) {
       unsubscribes.push(onValue(ref(database, `customers/${user.uid}`), (snapshot) => {
         const customerData = snapshot.val();
