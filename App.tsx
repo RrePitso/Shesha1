@@ -76,6 +76,8 @@ const App: React.FC = () => {
           if (role) setIsSocialSignUpOpen(false); 
           setIsAuthModalOpen(false);
 
+          // Attempt to get token on login. This works for existing users,
+          // but might fail for new social users who don't have a profile yet.
           try {
             await requestPermissionAndToken(userAuth.uid);
           } catch (err) {
@@ -204,6 +206,17 @@ const App: React.FC = () => {
     try {
       await createSocialUserProfile(user, role, profileData);
       setUserRole(role);
+      
+      // FIX IMPLEMENTED HERE:
+      // We explicitly request the token now that the profile is confirmed created.
+      // This catches the case where the initial login attempt failed to write the token
+      // because the user profile didn't exist yet.
+      try {
+        await requestPermissionAndToken(user.uid);
+      } catch (tokenErr) {
+        console.warn('Failed to register token after social signup:', tokenErr);
+      }
+
       setIsSocialSignUpOpen(false);
       setSocialUser(null);
       addToast('Account created successfully!', 'success');
