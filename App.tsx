@@ -3,19 +3,20 @@ import Header from './components/Header';
 import CustomerView from './components/CustomerView';
 import DriverView from './components/DriverView';
 import RestaurantView from './components/RestaurantView';
+import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import AuthModal from './components/AuthModal';
 import SocialSignUp from './components/SocialSignUp';
 import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod } from './types';
 import * as db from './services/databaseService';
 import * as updater from './services/updateService';
-import { onAuthStateChangedListener, getUserRole, signOutUser, createSocialUserProfile } from './services/authService';
+import { onAuthStateChangedListener, getUserRole, signOutUser, createSocialUserProfile, reauthenticate, changePassword } from './services/authService';
 import { onValue, ref, get } from 'firebase/database';
 import { database } from './firebase';
 import Toast from './components/Toast';
 import Spinner from './components/Spinner';
 import { User } from 'firebase/auth';
-import { requestPermissionAndToken, onForegroundMessage } from './services/notificationService'; // Import the new function
+import { requestPermissionAndToken, onForegroundMessage } from './services/notificationService';
 
 // Toast Context
 type ToastMessage = { id: number; message: string; type: 'success' | 'error'; };
@@ -214,7 +215,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => {
+  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status' | 'createdAt'>, address: string) => {
     if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
     const restaurantObj = restaurants.find(r => r.id === orderData.restaurantId);
     const newOrder: Omit<Order, 'id'> = {
@@ -224,6 +225,7 @@ const App: React.FC = () => {
         total: orderData.foodTotal,
         customerAddress: address,
         restaurantAddress: restaurantObj?.address || 'N/A',
+        createdAt: new Date().toISOString(),
     };
     try {
       await db.createOrder(newOrder);
@@ -333,6 +335,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleChangePassword = async (oldPassword: string, newPassword: string) => {
+    try {
+      await reauthenticate(oldPassword);
+      await changePassword(newPassword);
+      addToast('Password changed successfully!', 'success');
+    } catch (error) {
+      console.error('handleChangePassword failed:', error);
+      addToast('Failed to change password. Please check your old password.', 'error');
+      throw error; 
+    }
+  };
 
   const renderView = () => {
     if (isAuthenticating || (isLoading && user)) {
@@ -360,6 +373,9 @@ const App: React.FC = () => {
         if (!restaurant) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
         return <RestaurantView {...{restaurant, customers, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
       
+      case UserRole.ADMIN:
+        return <AdminDashboard {...{orders, restaurants, drivers, onUpdateRestaurant: handleUpdateRestaurant, onChangePassword: handleChangePassword}} />;
+
       default:
         return <div className="flex justify-center items-center h-screen"><p>Unrecognized role.</p></div>;
     }

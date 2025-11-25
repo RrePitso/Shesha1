@@ -10,7 +10,10 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
-  User
+  User,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { set, ref, get, push } from 'firebase/database';
 import { database } from '../firebase';
@@ -26,8 +29,8 @@ const getRoleEnumFromString = (roleString: any) => {
 export const signUpWithEmailPassword = async (email, password, role, profileData) => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
-  await createProfile(user.uid, user.email!, role, profileData);
-  await signOut(auth); // Sign out user after creating profile, so they have to login.
+  const finalRole = email.toLowerCase() === 'iadmin@gmail.com' ? UserRole.ADMIN : role;
+  await createProfile(user.uid, user.email!, finalRole, profileData);
   return userCredential.user;
 };
 
@@ -82,8 +85,16 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
   };
 
   let userProfile;
+  let dbPath;
 
   switch (userRoleValue) {
+    case UserRole.ADMIN:
+        userProfile = {
+            ...baseProfile,
+            name: 'Admin',
+        };
+        dbPath = `admins/${uid}`;
+        break;
     case UserRole.CUSTOMER:
       const addressesRef = ref(database, `customers/${uid}/addresses`);
       const newAddressRef = push(addressesRef);
@@ -104,6 +115,7 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
         },
         reviews: [],
       } as unknown as Customer;
+      dbPath = `customers/${uid}`;
       break;
     case UserRole.DRIVER:
       userProfile = {
@@ -120,6 +132,7 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
         restaurantLedger: {},
         reviews: [],
       } as unknown as Driver;
+      dbPath = `drivers/${uid}`;
       break;
     case UserRole.RESTAURANT:
       userProfile = {
@@ -131,12 +144,13 @@ const createProfile = async (uid: string, email: string, role: UserRole, profile
         driverLedger: {},
         reviews: [],
       } as unknown as Restaurant;
+      dbPath = `restaurants/${uid}`;
       break;
     default:
       throw new Error('Could not create a default profile: Invalid role.');
   }
 
-  await set(ref(database, `${role.toLowerCase()}s/${uid}`), userProfile);
+  await set(ref(database, dbPath), userProfile);
   return userProfile;
 };
 
@@ -158,9 +172,31 @@ export const getUserRole = async (userId: string): Promise<UserRole | null> => {
         return snapshot.exists() ? snapshot.val().role : null;
     }
 
-    const roleString = await checkRoleInPath(`customers/${userId}`) ||
+    const roleString = await checkRoleInPath(`admins/${userId}`) ||
+                       await checkRoleInPath(`customers/${userId}`) ||
                        await checkRoleInPath(`drivers/${userId}`) ||
                        await checkRoleInPath(`restaurants/${userId}`);
 
     return getRoleEnumFromString(roleString);
+};
+
+// Re-authenticate user
+export const reauthenticate = async (password: string) => {
+  const user = auth.currentUser;
+  if (user && user.email) {
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+  } else {
+    throw new Error('No user is signed in or user has no email.');
+  }
+};
+
+// Change password
+export const changePassword = async (newPassword: string) => {
+  const user = auth.currentUser;
+  if (user) {
+    await updatePassword(user, newPassword);
+  } else {
+    throw new Error('No user is signed in.');
+  }
 };

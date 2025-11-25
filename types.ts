@@ -2,6 +2,14 @@ export enum UserRole {
   CUSTOMER = 'customer',
   DRIVER = 'driver',
   RESTAURANT = 'restaurant',
+  ADMIN = 'admin',
+}
+
+export interface Subscription {
+  amount: number;
+  dueDate: string; // ISO string
+  lastPaidDate?: string; // ISO string
+  history?: { date: string; amount: number; }[];
 }
 
 export interface Restaurant {
@@ -12,6 +20,7 @@ export interface Restaurant {
   rating: number;
   driverLedger: { [driverId: string]: number };
   reviews: Review[];
+  subscription?: Subscription;
 }
 
 export interface MenuItem {
@@ -44,6 +53,7 @@ export interface Order {
   paymentMethod: PaymentMethod;
   isDriverReviewed?: boolean;
   isRestaurantReviewed?: boolean;
+  createdAt: string; // Added for tracking order time
 }
 
 
@@ -87,6 +97,7 @@ export interface Customer {
   phoneNumber: string;
   addresses: Address[];
   reviews: Review[];
+  createdAt: string;
 }
 
 export interface Address {
