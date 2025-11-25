@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Restaurant } from '../types';
 import Spinner from './Spinner';
+import ImageUploader from './ImageUploader';
 
 interface RestaurantProfileModalProps {
   restaurant: Restaurant;
@@ -20,7 +21,7 @@ const RestaurantProfileModal: React.FC<RestaurantProfileModalProps> = ({ restaur
     setIsVisible(true);
     setName(restaurant.name);
     setCuisine(restaurant.cuisine);
-    setImageUrl(restaurant.imageUrl);
+    setImageUrl(restaurant.imageUrl || '');
     setAddress(restaurant.address);
   }, [restaurant]);
   
@@ -63,10 +64,11 @@ const RestaurantProfileModal: React.FC<RestaurantProfileModalProps> = ({ restaur
               <label htmlFor="rest-cuisine" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cuisine Type</label>
               <input type="text" id="rest-cuisine" value={cuisine} onChange={e => setCuisine(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
             </div>
-            <div>
-              <label htmlFor="rest-image" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image URL</label>
-              <input type="text" id="rest-image" value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
-            </div>
+            <ImageUploader 
+                label="Restaurant Image"
+                currentImage={imageUrl}
+                onImageSelected={setImageUrl}
+            />
              <div>
               <label htmlFor="rest-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
               <input type="text" id="rest-address" value={address} onChange={e => setAddress(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
