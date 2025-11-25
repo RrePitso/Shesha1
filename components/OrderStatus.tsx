@@ -43,7 +43,6 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
     };
 
     const renderActionButton = () => {
-        // Only show the 'Choose Payment' button if a payment method has NOT been selected yet.
         if (order.status === OrderStatus.DRIVER_ASSIGNED && !order.paymentMethod) {
             return (
                 <button 
@@ -69,21 +68,32 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
             );
         }
 
-        if (order.status === OrderStatus.DELIVERED && onRateDriver && onRateRestaurant) {
+        if (order.status === OrderStatus.DELIVERED && (onRateDriver || onRateRestaurant)) {
+            const showRateDriver = onRateDriver && !order.isDriverReviewed;
+            const showRateRestaurant = onRateRestaurant && !order.isRestaurantReviewed;
+
+            if (!showRateDriver && !showRateRestaurant) {
+                return <p className="text-center text-gray-500 dark:text-gray-400 mt-4">Thank you for your feedback!</p>;
+            }
+
             return (
                 <div className='flex flex-col sm:flex-row justify-center items-center mt-4 space-y-4 sm:space-y-0 sm:space-x-4'>
-                    <button 
-                        onClick={() => onRateDriver(order)}
-                        className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg"
-                    >
-                        Rate Driver
-                    </button>
-                    <button 
-                        onClick={() => onRateRestaurant(order)}
-                        className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg"
-                    >
-                        Rate Restaurant
-                    </button>
+                    {showRateDriver && (
+                        <button 
+                            onClick={() => onRateDriver(order)}
+                            className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg"
+                        >
+                            Rate Driver
+                        </button>
+                    )}
+                    {showRateRestaurant && (
+                        <button 
+                            onClick={() => onRateRestaurant(order)}
+                            className="w-full sm:w-auto bg-primary-orange text-white font-bold py-3 px-6 rounded-lg hover:bg-secondary-orange transition duration-300 shadow-lg"
+                        >
+                            Rate Restaurant
+                        </button>
+                    )}
                 </div>
             );
         }
@@ -106,7 +116,6 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
 
         <div className="my-6">
             <p className="text-lg font-semibold text-center text-gray-800 dark:text-gray-200 mb-4">{getStatusText(order.status)}</p>
-            {/* Visual Tracker can go here if you want one */}
         </div>
 
         <div>

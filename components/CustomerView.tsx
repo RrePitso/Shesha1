@@ -10,6 +10,8 @@ import { useToast } from '../App';
 import RatingModal from './RatingModal';
 import RestaurantRatingModal from './RestaurantRatingModal';
 import { updateOrder } from '../services/databaseService';
+import Tabs from './Tabs'; // Import the new Tabs component
+import { UserIcon } from '@heroicons/react/24/solid';
 
 interface CustomerViewProps {
   restaurants: Restaurant[];
@@ -126,18 +128,38 @@ const CustomerView: React.FC<CustomerViewProps> = ({
   const ratingOrderDriver = ratingOrder ? drivers.find(d => d.id === ratingOrder.driverId) : null;
   const ratingRestaurant = ratingRestaurantOrder ? restaurants.find(r => r.id === ratingRestaurantOrder.restaurantId) : null;
 
-
   const activeOrders = orders.filter(o => o.status !== OrderStatus.DELIVERED);
   const completedOrders = orders.filter(o => o.status === OrderStatus.DELIVERED);
 
+  const TABS = ['Restaurants', `Active Orders (${activeOrders.length})`, 'Order History'];
+
   return (
-    <div className="container mx-auto p-4 md:p-8 bg-green-50">
-       {/* Active Orders Section */}
-      {activeOrders.length > 0 && (
-          <div className="mb-12">
-              <h2 className="text-3xl font-bold text-green-900 dark:text-white mb-6">Your Active Orders</h2>
-              <div className="space-y-6">
-                {activeOrders.map(order => {
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome, {customer.name}</h1>
+          <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="bg-white border border-gray-300 dark:bg-gray-700 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold flex items-center shadow-sm active:scale-95"
+          >
+              <UserIcon className="h-5 w-5 mr-2" />
+              My Profile
+          </button>
+      </div>
+
+      <Tabs tabs={TABS} defaultTab="Restaurants">
+        {(activeTab) => (
+          <div>
+            {activeTab === 'Restaurants' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {restaurants.map(restaurant => (
+                  <RestaurantCard key={restaurant.id} restaurant={restaurant} onViewMenu={handleViewMenu} />
+                ))}
+              </div>
+            )}
+
+            {activeTab === `Active Orders (${activeOrders.length})` && (
+              <div className="space-y-6 max-w-4xl mx-auto">
+                {activeOrders.length > 0 ? activeOrders.map(order => {
                     const restaurant = restaurants.find(r => r.id === order.restaurantId);
                     const driver = drivers.find(d => d.id === order.driverId);
                     return (
@@ -150,53 +172,32 @@ const CustomerView: React.FC<CustomerViewProps> = ({
                             onConfirmPayshapPayment={handleCustomerPayshapConfirmation}
                         />
                     )
-                })}
+                }) : <p className="text-center text-gray-500 dark:text-gray-400 py-10">You have no active orders.</p>}
               </div>
-          </div>
-      )}
+            )}
 
-      {/* Completed Orders Section */}
-      {completedOrders.length > 0 && (
-          <div className="mb-12">
-              <h2 className="text-3xl font-bold text-green-900 dark:text-white mb-6">Past Orders</h2>
-              <div className="space-y-6">
-                {completedOrders.map(order => {
+            {activeTab === 'Order History' && (
+              <div className="space-y-6 max-w-4xl mx-auto">
+                 {completedOrders.length > 0 ? completedOrders.map(order => {
                     const restaurant = restaurants.find(r => r.id === order.restaurantId);
                     return (
                         <OrderStatusTracker 
                             key={order.id} 
                             order={order} 
                             restaurantName={restaurant?.name || 'Restaurant'} 
-                            onPayNow={() => {}} // No pay now for completed
+                            onPayNow={() => {}} 
                             onRateDriver={setRatingOrder}
                             onRateRestaurant={setRatingRestaurantOrder}
                         />
                     )
-                })}
+                }) : <p className="text-center text-gray-500 dark:text-gray-400 py-10">Your order history is empty.</p>}
               </div>
+            )}
           </div>
-      )}
-
-
-      {/* Restaurants Section */}
-      <div>
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-green-900 dark:text-white">Restaurants Near You</h2>
-            <button
-                onClick={() => setIsProfileModalOpen(true)}
-                className="bg-primary-orange text-white py-2 px-4 rounded-md hover:bg-secondary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all font-semibold flex items-center shadow active:scale-95"
-            >
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                Profile
-            </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {restaurants.map(restaurant => (
-            <RestaurantCard key={restaurant.id} restaurant={restaurant} onViewMenu={handleViewMenu} />
-          ))}
-        </div>
-      </div>
+        )}
+      </Tabs>
       
+      {/* Modals are kept outside the main layout */}
       {selectedRestaurant && (
         <MenuModal 
           restaurant={selectedRestaurant} 
@@ -240,7 +241,6 @@ const CustomerView: React.FC<CustomerViewProps> = ({
             onSubmitReview={handleRestaurantReviewSubmit}
           />
       )}
-
 
       {isProfileModalOpen && (
           <CustomerProfileModal 
