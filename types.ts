@@ -16,7 +16,7 @@ export interface Review {
   id: string;
   orderId: string;
   customerId: string;
-  customerName: string; // denormalized for easy access
+  customerName: string; 
   rating: number;
   comment: string;
   reviewer: 'customer' | 'driver' | 'restaurant';
@@ -34,19 +34,17 @@ export interface BaseUser {
   rating: number;
 }
 
+// FIX: Updated to match SignUp.tsx and CustomerProfileModal.tsx
 export interface Address {
   id: string;
-  name: string;
-  street: string;
-  city: string;
-  postalCode: string;
-  isPrimary: boolean;
+  area: string;      // Used for delivery fee calculation
+  details: string;   // e.g., "House 4, Main Street"
+  isDefault: boolean; // Matches your existing code
 }
 
 export interface Customer extends BaseUser {
   addresses: Address[];
   phoneNumber: string;
-  // `orders` will be fetched separately, not stored directly on the user
 }
 
 export interface MenuItem {
@@ -66,7 +64,7 @@ export interface GeneratedMenuItem {
 export interface Restaurant extends BaseUser {
   address: string;
   menu: MenuItem[];
-  driverLedger: { [driverId: string]: number }; // Amount restaurant is owed by each driver
+  driverLedger: { [driverId: string]: number }; 
 }
 
 export enum OrderStatus {
@@ -74,11 +72,11 @@ export enum OrderStatus {
   ACCEPTED_BY_RESTAURANT = 'Accepted by Restaurant',
   PENDING_DRIVER_ASSIGNMENT = 'Ready for Pickup',
   DRIVER_ASSIGNED = 'Driver Assigned',
-  PENDING_PAYMENT = 'Pending Payment', // Customer needs to pay via Payshap
-  AWAITING_DRIVER_CONFIRMATION = 'Awaiting Driver Confirmation', // Customer has paid, driver must acknowledge
-  AT_RESTAURANT = 'At Restaurant', // Driver has arrived at the restaurant
-  IN_TRANSIT = 'In Transit', // Driver has picked up the food and is on the way
-  AT_DROPOFF = 'At Dropoff', // Driver has arrived at the customer's location
+  PENDING_PAYMENT = 'Pending Payment', 
+  AWAITING_DRIVER_CONFIRMATION = 'Awaiting Driver Confirmation', 
+  AT_RESTAURANT = 'At Restaurant', 
+  IN_TRANSIT = 'In Transit', 
+  AT_DROPOFF = 'At Dropoff', 
   DELIVERED = 'Delivered',
 }
 
@@ -101,7 +99,7 @@ export interface Order {
   paymentMethod?: PaymentMethod;
   customerAddress: string;
   restaurantAddress: string;
-  createdAt: string; // ISO 8601 format
+  createdAt: string; 
   isDriverReviewed?: boolean;
   isRestaurantReviewed?: boolean;
 }
@@ -116,8 +114,8 @@ export interface Driver extends BaseUser {
   };
   deliveryAreas: { [area: string]: { baseFee: number } };
   acceptedPaymentMethods: PaymentMethod[];
-  earnings: { [orderId: string]: number }; // delivery fees earned per order
-  restaurantLedger: { [restaurantId: string]: number }; // Amount driver owes each restaurant
+  earnings: { [orderId: string]: number }; 
+  restaurantLedger: { [restaurantId: string]: number }; 
 }
 
 export interface ParcelItem {
@@ -149,5 +147,5 @@ export interface Parcel {
   goodsCost?: number;
   paymentMethod?: PaymentMethod;
   total?: number;
-  createdAt: string; // ISO 8601 format
+  createdAt: string; 
 }
