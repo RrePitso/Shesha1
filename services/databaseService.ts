@@ -1,6 +1,6 @@
 import { get, ref, set, push, update, remove } from 'firebase/database';
 import { database } from '../firebase';
-import { Order, Restaurant, Driver, Customer, Review, Address, PaymentMethod } from '../types';
+import { Order, Restaurant, Driver, Customer, Review, Address, PaymentMethod, Parcel, ParcelStatus } from '../types';
 
 // Generic function to fetch data
 const fetchData = async (path: string) => {
@@ -75,6 +75,15 @@ export const getOrders = async (): Promise<Order[]> => {
     }));
 };
 
+export const getParcels = async (): Promise<Parcel[]> => {
+    const data = await fetchData('parcels');
+    if (!data) return [];
+    return Object.keys(data).map(id => ({
+        id,
+        ...data[id],
+    }));
+};
+
 export const getCustomer = async (id: string): Promise<Customer | null> => {
     const data = await fetchData(`customers/${id}`);
     if (!data) return null;
@@ -117,6 +126,15 @@ export const getOrder = async (id: string): Promise<Order | null> => {
     } as Order;
 };
 
+export const getParcel = async (id: string): Promise<Parcel | null> => {
+    const data = await fetchData(`parcels/${id}`);
+    if (!data) return null;
+    return { 
+        id, 
+        ...data,
+    } as Parcel;
+};
+
 // --- Setters / Updaters ---
 
 export const createOrder = async (orderData: Omit<Order, 'id'>): Promise<string> => {
@@ -125,8 +143,24 @@ export const createOrder = async (orderData: Omit<Order, 'id'>): Promise<string>
     return newOrderRef.key!;
 };
 
+export const createParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'deliveryFee' | 'createdAt'>): Promise<string> => {
+    const newParcelRef = push(ref(database, 'parcels'));
+    const fullParcelData = {
+        ...parcelData,
+        status: ParcelStatus.PENDING_DRIVER_ASSIGNMENT,
+        deliveryFee: 0, // Or calculate based on distance
+        createdAt: new Date().toISOString(),
+    };
+    await set(newParcelRef, fullParcelData);
+    return newParcelRef.key!;
+};
+
 export const updateOrder = async (orderId: string, updates: Partial<Order>) => {
     await update(ref(database, `orders/${orderId}`), updates);
+};
+
+export const updateParcel = async (parcelId: string, updates: Partial<Parcel>) => {
+    await update(ref(database, `parcels/${parcelId}`), updates);
 };
 
 export const updateDriver = async (driverId: string, updates: Partial<Driver>) => {

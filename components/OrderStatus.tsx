@@ -57,7 +57,7 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
         if (order.status === OrderStatus.PENDING_PAYMENT && onConfirmPayshapPayment) {
             return (
                 <div className='mt-4 text-center'>
-                    <p className='text-gray-600 dark:text-gray-300'>Please send <span className='font-bold'>R{order.total?.toFixed(2)}</span> to the driver at <span className='font-bold'>{driver?.paymentPhoneNumber}</span> via Payshap.</p>
+                    <p className='text-gray-600 dark:text-gray-300'>Please send <span className='font-bold'>R{(order.total ?? 0).toFixed(2)}</span> to the driver at <span className='font-bold'>{driver?.paymentPhoneNumber}</span> via Payshap.</p>
                     <button 
                         onClick={() => onConfirmPayshapPayment(order.id)}
                         className="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 shadow-lg mt-4"
@@ -109,7 +109,7 @@ const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
                 <p className="text-sm text-gray-500 dark:text-gray-400">Order ID: #{order.id.slice(-6)}</p>
             </div>
             <div className="mt-3 sm:mt-0 text-right">
-                <p className="text-xl font-bold text-green-900 dark:text-gray-100">Total: R{order.total ? order.total.toFixed(2) : order.foodTotal.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-900 dark:text-gray-100">Total: R{(order.total ?? order.foodTotal ?? 0).toFixed(2)}</p>
                 {order.paymentMethod && <p className="text-sm text-gray-600 dark:text-gray-300">via {order.paymentMethod}</p>}
             </div>
         </div>

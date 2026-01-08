@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Driver, Order, Restaurant, OrderStatus, Customer } from '../types';
+import { Driver, Order, Restaurant, OrderStatus, Customer, Parcel, ParcelStatus } from '../types';
 import DriverDashboard from './DriverDashboard';
 import DriverEditProfileModal from './DriverEditProfileModal';
 import OnboardingModal from './OnboardingModal';
@@ -9,14 +8,28 @@ import { useToast } from '../App';
 interface DriverViewProps {
   driver: Driver;
   orders: Order[];
+  parcels: Parcel[];
   restaurants: Restaurant[];
   customers: Customer[];
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateParcel: (parcelId: string, updates: Partial<Parcel>) => void; // Corrected prop
   acceptOrder: (orderId: string, driverId: string) => Promise<void>;
+  acceptParcel: (parcelId: string, driverId: string) => Promise<void>;
   onUpdateDriver: (driver: Driver) => Promise<void>;
 }
 
-const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, customers, updateOrderStatus, acceptOrder, onUpdateDriver }) => {
+const DriverView: React.FC<DriverViewProps> = ({ 
+  driver, 
+  orders, 
+  parcels, 
+  restaurants, 
+  customers, 
+  updateOrderStatus, 
+  updateParcel, // Corrected prop
+  acceptOrder, 
+  acceptParcel, 
+  onUpdateDriver 
+}) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editModalInitialTab, setEditModalInitialTab] = useState<'profile' | 'payments' | 'areas'>('profile');
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -64,6 +77,11 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
     addToast('Delivery accepted!', 'success');
   };
 
+  const handleAcceptParcel = async (parcelId: string) => {
+    await acceptParcel(parcelId, driver.id);
+    addToast('Parcel pickup accepted!', 'success');
+  };
+
   const handleUpdateDriverProfile = async (updatedDriver: Driver) => {
     await onUpdateDriver(updatedDriver);
     addToast('Profile updated successfully!', 'success');
@@ -72,6 +90,10 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
   const activeOrders = orders.filter(o => o.driverId === driver.id && o.status !== OrderStatus.DELIVERED);
   const availableOrders = orders.filter(o => o.status === OrderStatus.PENDING_DRIVER_ASSIGNMENT);
   const completedOrders = orders.filter(o => o.driverId === driver.id && o.status === OrderStatus.DELIVERED);
+
+  const activeParcels = parcels.filter(p => p.driverId === driver.id && p.status !== ParcelStatus.DELIVERED);
+  const availableParcels = parcels.filter(p => p.status === ParcelStatus.PENDING_DRIVER_ASSIGNMENT);
+  const completedParcels = parcels.filter(p => p.driverId === driver.id && p.status === ParcelStatus.DELIVERED);
   
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -98,10 +120,15 @@ const DriverView: React.FC<DriverViewProps> = ({ driver, orders, restaurants, cu
         availableOrders={availableOrders}
         completedOrders={completedOrders}
         activeOrders={activeOrders}
+        availableParcels={availableParcels}
+        activeParcels={activeParcels}
+        completedParcels={completedParcels}
         restaurants={restaurants}
         customers={customers}
         onAcceptOrder={handleAcceptOrder}
+        onAcceptParcel={handleAcceptParcel}
         updateOrderStatus={updateOrderStatus}
+        updateParcel={updateParcel} // Correctly passed down
       />
 
       {isEditModalOpen && (

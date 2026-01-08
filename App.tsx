@@ -7,7 +7,7 @@ import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import AuthModal from './components/AuthModal';
 import SocialSignUp from './components/SocialSignUp';
-import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod } from './types';
+import { UserRole, Order, Restaurant, Driver, Customer, MenuItem, Address, OrderStatus, PaymentMethod, Parcel, ParcelStatus, AppView } from './types';
 import * as db from './services/databaseService';
 import * as updater from './services/updateService';
 import { onAuthStateChangedListener, getUserRole, signOutUser, createSocialUserProfile, reauthenticate, changePassword } from './services/authService';
@@ -17,6 +17,7 @@ import Toast from './components/Toast';
 import Spinner from './components/Spinner';
 import { User } from 'firebase/auth';
 import { requestPermissionAndToken, onForegroundMessage } from './services/notificationService';
+import ParcelView from './components/ParcelView';
 
 // Toast Context
 type ToastMessage = { id: number; message: string; type: 'success' | 'error'; };
@@ -36,6 +37,7 @@ const App: React.FC = () => {
   const [isSocialSignUpOpen, setIsSocialSignUpOpen] = useState(false);
   const [socialUser, setSocialUser] = useState<User | null>(null);
   const [isCreatingSocialProfile, setIsCreatingSocialProfile] = useState(false);
+  const [currentView, setCurrentView] = useState<AppView>(AppView.FOOD);
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -44,6 +46,7 @@ const App: React.FC = () => {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [parcels, setParcels] = useState<Parcel[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -107,6 +110,7 @@ const App: React.FC = () => {
       setDriver(null);
       setRestaurant(null);
       setOrders([]);
+      setParcels([]);
       return;
     }
 
@@ -135,6 +139,12 @@ const App: React.FC = () => {
           const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
           setOrders(list);
       }),
+      onValue(ref(database, 'parcels'), (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return setParcels([]);
+        const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        setParcels(list);
+    }),
       onValue(ref(database, 'customers'), (snapshot) => setCustomers(firebaseObjectToArray(snapshot.val()))),
     ];
 
@@ -169,6 +179,7 @@ const App: React.FC = () => {
       get(ref(database, 'restaurants')),
       get(ref(database, 'drivers')),
       get(ref(database, 'orders')),
+      get(ref(database, 'parcels')),
       get(ref(database, 'customers'))
     ])
       .catch((err) => {
@@ -207,10 +218,6 @@ const App: React.FC = () => {
       await createSocialUserProfile(user, role, profileData);
       setUserRole(role);
       
-      // FIX IMPLEMENTED HERE:
-      // We explicitly request the token now that the profile is confirmed created.
-      // This catches the case where the initial login attempt failed to write the token
-      // because the user profile didn't exist yet.
       try {
         await requestPermissionAndToken(user.uid);
       } catch (tokenErr) {
@@ -249,6 +256,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCreateParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'deliveryFee' | 'createdAt'>) => {
+    try {
+      await db.createParcel(parcelData);
+      addToast('Parcel request created successfully!', 'success');
+    } catch (err) {
+      console.error('createParcel failed:', err);
+      addToast('Failed to create parcel request. Please try again.', 'error');
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
@@ -269,16 +286,35 @@ const App: React.FC = () => {
       addToast('Failed to update order status.', 'error');
     }
  };
-  
-  const handleAcceptOrder = async (orderId: string, driverId: string) => {
-    try {
-      await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
-      addToast('Order assigned to you! Time to pick it up.', 'success');
-    } catch (err) {
-      console.error('handleAcceptOrder failed:', err);
-      addToast('Failed to accept order.', 'error');
-    }
-  };
+
+ const updateParcel = async (parcelId: string, updates: Partial<Parcel>) => {
+  try {
+    await db.updateParcel(parcelId, updates);
+  } catch (err) {
+    console.error('updateParcel failed:', err);
+    addToast('Failed to update parcel.', 'error');
+  }
+};
+
+ const handleAcceptOrder = async (orderId: string, driverId: string) => {
+  try {
+    await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
+    addToast('Order assigned to you! Time to pick it up.', 'success');
+  } catch (err) {
+    console.error('handleAcceptOrder failed:', err);
+    addToast('Failed to accept order.', 'error');
+  }
+};
+
+const handleAcceptParcel = async (parcelId: string, driverId: string) => {
+  try {
+    await db.updateParcel(parcelId, { driverId, status: ParcelStatus.DRIVER_ASSIGNED });
+    addToast('Parcel assigned to you! Time to pick it up.', 'success');
+  } catch (err) {
+    console.error('handleAcceptParcel failed:', err);
+    addToast('Failed to accept parcel.', 'error');
+  }
+};
 
   const handleUpdateDriver = (updatedDriver: Driver) => db.updateDriver(updatedDriver.id, updatedDriver);
   
@@ -296,14 +332,15 @@ const App: React.FC = () => {
     if (!customer) return;
     try {
       await db.addDriverReview(driverId, {
-        orderId, 
-        customerId: customer.id, 
-        customerName: customer.name, 
-        rating, 
+        orderId,
+        customerId: customer.id,
+        customerName: customer.name,
+        rating,
         comment,
         reviewer: 'customer',
         reviewee: 'driver',
         revieweeId: driverId,
+        createdAt: ''
       });
       await db.updateOrder(orderId, { isDriverReviewed: true });
       await updater.recalculateDriverRating(driverId);
@@ -318,14 +355,15 @@ const App: React.FC = () => {
     if (!customer) return;
     try {
       await db.addRestaurantReview(restaurantId, {
-        orderId, 
-        customerId: customer.id, 
-        customerName: customer.name, 
-        rating, 
+        orderId,
+        customerId: customer.id,
+        customerName: customer.name,
+        rating,
         comment,
         reviewer: 'customer',
         reviewee: 'restaurant',
         revieweeId: restaurantId,
+        createdAt: ''
       });
       await db.updateOrder(orderId, { isRestaurantReviewed: true });
       await updater.recalculateRestaurantRating(restaurantId);
@@ -376,11 +414,14 @@ const App: React.FC = () => {
     switch (userRole) {
       case UserRole.CUSTOMER:
         if (!customer) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+        if (currentView === AppView.PARCEL) {
+          return <ParcelView {...{parcels: parcels.filter(p => p.customerId === user.uid), drivers, customer, onCreateParcel: handleCreateParcel}} />;
+        }
         return <CustomerView {...{restaurants, orders: orders.filter(o => o.customerId === user.uid), drivers, customer, onPlaceOrder: handlePlaceOrder, onUpdateAddresses: handleUpdateAddresses, onUpdateProfile: handleUpdateCustomerProfile, onDriverReview: handleDriverReview, onRestaurantReview: handleRestaurantReview}} />;
       
       case UserRole.DRIVER:
         if (!driver) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        return <DriverView {...{driver, orders, restaurants, customers, updateOrderStatus, acceptOrder: handleAcceptOrder, onUpdateDriver: handleUpdateDriver}} />;
+        return <DriverView {...{driver, orders, parcels, restaurants, customers, updateOrderStatus, updateParcel, acceptOrder: handleAcceptOrder, acceptParcel: handleAcceptParcel, onUpdateDriver: handleUpdateDriver}} />;
 
       case UserRole.RESTAURANT:
         if (!restaurant) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
@@ -397,7 +438,7 @@ const App: React.FC = () => {
   return (
     <ToastContext.Provider value={{ addToast }}>
       <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans">
-        {user && <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} />}
+        {user && <Header activeRole={userRole} onLogout={handleLogout} isLoggedIn={!!user} onSwitchView={setCurrentView} currentView={currentView} />}
         <main>{renderView()}</main>
         {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onSocialLogin={handleSocialLogin} />}
         {isSocialSignUpOpen && socialUser && (

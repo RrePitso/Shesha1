@@ -1,15 +1,15 @@
-
 import React from 'react';
-import { UserRole } from '../types';
+import { UserRole, AppView } from '../types';
 
-// Updated props for the new authentication flow
 interface HeaderProps {
   activeRole: UserRole | null;
   isLoggedIn: boolean;
   onLogout: () => void;
+  onSwitchView: (view: AppView) => void;
+  currentView: AppView;
 }
 
-const Header: React.FC<HeaderProps> = ({ activeRole, isLoggedIn, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ activeRole, isLoggedIn, onLogout, onSwitchView, currentView }) => {
 
   const UserIcon: React.FC<{role: UserRole}> = ({role}) => {
     switch (role) {
@@ -28,8 +28,14 @@ const Header: React.FC<HeaderProps> = ({ activeRole, isLoggedIn, onLogout }) => 
     <header className="bg-black shadow-md p-4 sticky top-0 z-50">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
-<img src="/2-822f66d1.ico" alt="iDelivery Logo" className="h-24 w-auto"/>
+          <img src="/2-822f66d1.ico" alt="iDelivery Logo" className="h-24 w-auto"/>
         </div>
+        {isLoggedIn && activeRole === UserRole.CUSTOMER && (
+          <div className="flex items-center space-x-2 bg-gray-800 p-1 rounded-lg">
+            <button onClick={() => onSwitchView(AppView.FOOD)} className={`px-3 py-1 text-sm font-medium rounded-md ${currentView === AppView.FOOD ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>Food</button>
+            <button onClick={() => onSwitchView(AppView.PARCEL)} className={`px-3 py-1 text-sm font-medium rounded-md ${currentView === AppView.PARCEL ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>Parcel</button>
+          </div>
+        )}
         <div className="flex items-center space-x-4">
           {isLoggedIn && activeRole ? (
             <>

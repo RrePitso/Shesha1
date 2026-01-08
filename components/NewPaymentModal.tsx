@@ -1,62 +1,77 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Order, Driver, PaymentMethod } from '../types';
+import { Order, Parcel, Driver, PaymentMethod } from '../types';
 import Spinner from './Spinner';
 
 interface NewPaymentModalProps {
-  order: Order;
+  order: Order | Parcel;
   driver: Driver;
   onClose: () => void;
   onConfirmPayment: (orderId: string, paymentMethod: PaymentMethod, deliveryFee: number, total: number) => Promise<void>;
+  isParcel?: boolean;
 }
 
-const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClose, onConfirmPayment }) => {
+const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClose, onConfirmPayment, isParcel = false }) => {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [areaFee, setAreaFee] = useState(0);
   const [paymentFee, setPaymentFee] = useState(0);
-  const [deliveryFee, setDeliveryFee] = useState(0); // combined
-  const [total, setTotal] = useState(order.foodTotal);
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Extract the area from customerAddress which is formatted as "Area: details"
-  const getOrderArea = (): string | undefined => {
-    const raw = (order as any).customerAddress || (order as any).deliveryArea || (order as any).area;
-    if (!raw || typeof raw !== 'string') return undefined;
-    const parts = raw.split(':');
-    return parts.length > 0 ? parts[0].trim() : raw.trim();
-  };
+  const baseTotal = isParcel ? (order as Parcel).goodsCost || 0 : (order as Order).foodTotal;
+  const address = isParcel ? (order as Parcel).dropoffAddress : (order as Order).customerAddress;
 
-  // Normalize delivery area keys for robust matching
   const normalizedDeliveryAreas = useMemo(() => {
-    const map: { [k: string]: number } = {};
+    const map: { [k: string]: { baseFee: number } } = {};
     if (driver?.deliveryAreas) {
       Object.entries(driver.deliveryAreas).forEach(([k, v]) => {
-        if (typeof k === 'string') map[k.trim().toLowerCase()] = Number(v);
+        if (typeof k === 'string') map[k.trim().toLowerCase()] = v;
       });
     }
     return map;
   }, [driver.deliveryAreas]);
 
-  const getAreaFee = (area?: string): number => {
-    if (!area) return 0;
-    return normalizedDeliveryAreas[area.trim().toLowerCase()] ?? 0;
+  const getAreaFee = (addressString?: string): number => {
+    if (!addressString) return 0;
+    const lowerAddress = addressString.toLowerCase();
+
+    // First, try to parse with a colon (format for customer food orders).
+    const parts = lowerAddress.split(':');
+    if (parts.length > 1) {
+        const areaFromAddress = parts[0].trim();
+        if (normalizedDeliveryAreas[areaFromAddress]) {
+            return normalizedDeliveryAreas[areaFromAddress].baseFee ?? 0;
+        }
+    }
+
+    // If no colon/match, search for any defined area names within the full address string (for parcels).
+    const knownAreas = Object.keys(normalizedDeliveryAreas);
+    // Find the longest matching area to avoid ambiguity (e.g. "somerset" vs "somerset west")
+    const matchingArea = knownAreas
+        .filter(area => lowerAddress.includes(area))
+        .sort((a, b) => b.length - a.length)[0]; // Get the longest match
+
+    if (matchingArea) {
+        return normalizedDeliveryAreas[matchingArea].baseFee ?? 0;
+    }
+
+    return 0;
   };
 
   const getPaymentFee = (method: PaymentMethod | null): number => {
     if (!method) return 0;
-    // fallback to legacy root baseFee if per-method fee missing
     return driver.fees?.[method]?.baseFee ?? (driver as any).baseFee ?? 0;
   };
 
   const computeAndSetFees = (method: PaymentMethod | null) => {
-    const area = getOrderArea();
-    const areaF = getAreaFee(area);
+    const areaF = getAreaFee(address);
     const paymentF = getPaymentFee(method);
     const combined = areaF + paymentF;
     setAreaFee(areaF);
     setPaymentFee(paymentF);
     setDeliveryFee(combined);
-    setTotal(order.foodTotal + combined);
+    setTotal(baseTotal + combined);
   };
 
   const handleMethodSelect = (method: PaymentMethod) => {
@@ -68,7 +83,6 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
     if (!selectedMethod) return;
     setIsLoading(true);
     try {
-      // Persist chosen payment method and computed fees via the parent handler
       await onConfirmPayment(order.id, selectedMethod, deliveryFee, total);
     } finally {
       setIsLoading(false);
@@ -88,14 +102,10 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
       setSelectedMethod(defaultMethod);
       computeAndSetFees(defaultMethod);
     } else {
-      // No payment methods: reflect only food total
-      setAreaFee(0);
-      setPaymentFee(0);
-      setDeliveryFee(0);
-      setTotal(order.foodTotal);
+      computeAndSetFees(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driver.acceptedPaymentMethods, order.foodTotal, driver.deliveryAreas, driver.fees]);
+  }, [driver.acceptedPaymentMethods, baseTotal, driver.deliveryAreas]);
 
   return (
     <div
@@ -139,11 +149,10 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
 
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
-              <span>Food Total:</span>
-              <span className="font-medium">R{order.foodTotal.toFixed(2)}</span>
+              <span>{isParcel ? 'Goods Cost:' : 'Food Total:'}</span>
+              <span className="font-medium">R{baseTotal.toFixed(2)}</span>
             </div>
 
-            {/* Breakdown */}
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
               <span>Area Fee:</span>
               <span className="font-medium">R{areaFee.toFixed(2)}</span>
@@ -152,7 +161,6 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
               <span>Payment Method Fee ({selectedMethod || '—'}):</span>
               <span className="font-medium">R{paymentFee.toFixed(2)}</span>
             </div>
-
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
               <span>Delivery Fee (Area + Method):</span>
               <span className="font-medium">R{deliveryFee.toFixed(2)}</span>
