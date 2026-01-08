@@ -10,7 +10,7 @@ import { useToast } from '../App';
 import RatingModal from './RatingModal';
 import RestaurantRatingModal from './RestaurantRatingModal';
 import { updateOrder } from '../services/databaseService';
-import Tabs from './Tabs'; // Import the new Tabs component
+import Tabs from './Tabs'; 
 import { UserIcon } from '@heroicons/react/24/solid';
 
 interface CustomerViewProps {
@@ -18,7 +18,8 @@ interface CustomerViewProps {
   orders: Order[];
   drivers: Driver[];
   customer: Customer;
-  onPlaceOrder: (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status'>, address: string) => Promise<void>;
+  // UPDATED Signature
+  onPlaceOrder: (orderData: Omit<Order, 'id' | 'status' | 'createdAt'>, address: string) => Promise<void>;
   onUpdateAddresses: (addresses: Address[], originalAddresses?: Address[]) => void;
   onUpdateProfile: (name: string, phoneNumber: string) => Promise<void>;
   onDriverReview: (orderId: string, driverId: string, rating: number, comment: string) => Promise<void>;
@@ -65,7 +66,8 @@ const CustomerView: React.FC<CustomerViewProps> = ({
     handleCloseMenuModal();
   }
 
-  const handleConfirmOrder = async (address: string) => {
+  // UPDATED: Now receives deliveryFee and total from the modal
+  const handleConfirmOrder = async (address: string, deliveryFee: number, total: number) => {
     if (orderToConfirm) {
         const restaurant = restaurants.find(r => r.id === orderToConfirm.restaurant.id);
         const newOrderData = {
@@ -73,6 +75,8 @@ const CustomerView: React.FC<CustomerViewProps> = ({
             customerId: customer.id,
             items: orderToConfirm.items,
             foodTotal: orderToConfirm.foodTotal,
+            deliveryFee: deliveryFee,
+            total: total,
             restaurantAddress: restaurant?.address || 'Restaurant Address',
             customerAddress: address,
         };
@@ -209,6 +213,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({
       {orderToConfirm && (
           <ConfirmOrderModal 
             customer={customer}
+            drivers={drivers} // Passed drivers prop
             orderData={orderToConfirm}
             onConfirm={handleConfirmOrder}
             onClose={() => setOrderToConfirm(null)}

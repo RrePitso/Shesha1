@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Customer, Address, Restaurant, MenuItem } from '../types';
+import { Customer, Address, Restaurant, MenuItem, Driver } from '../types';
 import { ALICE_AREAS } from '../constants';
 
 interface OrderConfirmationData {
@@ -10,12 +10,14 @@ interface OrderConfirmationData {
 
 interface ConfirmOrderModalProps {
   customer: Customer;
+  drivers: Driver[]; // ADDED: Need this to find fees
   orderData: OrderConfirmationData;
-  onConfirm: (address: string) => void;
+  // UPDATED: Now returns fee and total
+  onConfirm: (address: string, deliveryFee: number, total: number) => void;
   onClose: () => void;
 }
 
-const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderData, onConfirm, onClose }) => {
+const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, drivers, orderData, onConfirm, onClose }) => {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [isNewAddress, setIsNewAddress] = useState(false);
   const [newArea, setNewArea] = useState(ALICE_AREAS[0]);
@@ -30,27 +32,45 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
       setIsNewAddress(false);
     } else {
       setIsNewAddress(true);
+      if (ALICE_AREAS.length > 0) setNewArea(ALICE_AREAS[0]);
     }
   }, [customer.addresses, addressesArray.length]);
+
+  // Calculate Delivery Fee Logic
+  const calculateDeliveryFee = () => {
+    const currentArea = isNewAddress 
+        ? newArea 
+        : addressesArray.find(a => a.id === selectedAddressId)?.area;
+
+    if (!currentArea) return 0;
+
+    // Find a driver who covers this area
+    const availableDriver = drivers.find(d => 
+        d.deliveryAreas && d.deliveryAreas[currentArea]
+    );
+
+    return availableDriver ? availableDriver.deliveryAreas[currentArea].baseFee : 0;
+  };
+
+  const deliveryFee = calculateDeliveryFee();
+  const total = orderData.foodTotal + deliveryFee;
 
   const handleConfirm = () => {
     if (isNewAddress) {
       if (newAddressDetails.trim()) {
-        onConfirm(`${newArea}: ${newAddressDetails}`);
+        onConfirm(`${newArea}: ${newAddressDetails}`, deliveryFee, total);
       } else {
         alert('Please fill in the address details.');
       }
     } else {
       const selectedAddress = addressesArray.find(a => a.id === selectedAddressId);
       if (selectedAddress) {
-        onConfirm(`${selectedAddress.area}: ${selectedAddress.details}`);
+        onConfirm(`${selectedAddress.area}: ${selectedAddress.details}`, deliveryFee, total);
       } else {
         alert('Please select an address.');
       }
     }
   };
-  
-  const total = orderData.foodTotal;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
@@ -80,7 +100,16 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
                     <p className="text-gray-600 dark:text-gray-300">Subtotal</p>
                     <p className="font-semibold text-gray-800 dark:text-gray-200">R{orderData.foodTotal.toFixed(2)}</p>
                 </div>
-                <div className="flex justify-between text-lg">
+                
+                {/* Display Delivery Fee */}
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <p>Delivery Fee</p>
+                    <p>
+                        {deliveryFee > 0 ? `R${deliveryFee.toFixed(2)}` : <span className="text-red-500 text-sm">No drivers for this area</span>}
+                    </p>
+                </div>
+
+                <div className="flex justify-between text-lg mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                     <p className="font-bold text-green-900 dark:text-white">Total</p>
                     <p className="font-bold text-green-900 dark:text-white">R{total.toFixed(2)}</p>
                 </div>
@@ -131,7 +160,13 @@ const ConfirmOrderModal: React.FC<ConfirmOrderModalProps> = ({ customer, orderDa
 
         <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-b-lg flex justify-end space-x-4">
             <button onClick={onClose} className="px-4 py-2 rounded-md text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold transition-colors">Cancel</button>
-            <button onClick={handleConfirm} className="px-6 py-2 rounded-md text-white bg-primary-orange hover:bg-secondary-orange font-semibold transition-colors shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-orange">Confirm & Place Order</button>
+            <button 
+                onClick={handleConfirm} 
+                disabled={deliveryFee === 0} 
+                className={`px-6 py-2 rounded-md text-white font-semibold transition-colors shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary-orange ${deliveryFee === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-orange hover:bg-secondary-orange'}`}
+            >
+                Confirm & Place Order
+            </button>
         </div>
       </div>
     </div>

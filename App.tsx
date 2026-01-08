@@ -79,8 +79,6 @@ const App: React.FC = () => {
           if (role) setIsSocialSignUpOpen(false); 
           setIsAuthModalOpen(false);
 
-          // Attempt to get token on login. This works for existing users,
-          // but might fail for new social users who don't have a profile yet.
           try {
             await requestPermissionAndToken(userAuth.uid);
           } catch (err) {
@@ -235,14 +233,14 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status' | 'createdAt'>, address: string) => {
+  // UPDATED: Now respects the deliveryFee and total passed from the view
+  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'status' | 'createdAt'>, address: string) => {
     if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
     const restaurantObj = restaurants.find(r => r.id === orderData.restaurantId);
+    
     const newOrder: Omit<Order, 'id'> = {
         ...orderData,
         status: OrderStatus.PENDING_CONFIRMATION,
-        deliveryFee: 0,
-        total: orderData.foodTotal,
         customerAddress: address,
         restaurantAddress: restaurantObj?.address || 'N/A',
         createdAt: new Date().toISOString(),
@@ -256,7 +254,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCreateParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'deliveryFee' | 'createdAt'>) => {
+  // UPDATED: Now respects the deliveryFee and total passed from the view
+  const handleCreateParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'createdAt'>) => {
     try {
       await db.createParcel(parcelData);
       addToast('Parcel request created successfully!', 'success');

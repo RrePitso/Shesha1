@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Customer, Address, ParcelItem } from '../types';
+import { Customer, Address, ParcelItem, Driver } from '../types';
 import { ALICE_AREAS } from '../constants';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/solid';
 
 interface ParcelRequestModalProps {
   customer: Customer;
+  drivers: Driver[]; // ADDED
   onClose: () => void;
-  onCreateParcel: (pickupAddress: string, dropoffAddress: string, parcels: ParcelItem[]) => Promise<void>;
+  // UPDATED: Now accepts fee and total
+  onCreateParcel: (pickupAddress: string, dropoffAddress: string, parcels: ParcelItem[], deliveryFee: number, total: number) => Promise<void>;
 }
 
-const ParcelRequestModal: React.FC<ParcelRequestModalProps> = ({ customer, onClose, onCreateParcel }) => {
+const ParcelRequestModal: React.FC<ParcelRequestModalProps> = ({ customer, drivers, onClose, onCreateParcel }) => {
   const [pickupAddress, setPickupAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [parcels, setParcels] = useState<ParcelItem[]>([{ id: crypto.randomUUID(), description: '', quantity: 1 }]);
@@ -28,8 +30,28 @@ const ParcelRequestModal: React.FC<ParcelRequestModalProps> = ({ customer, onClo
       setIsNewAddress(false);
     } else {
       setIsNewAddress(true);
+      if (ALICE_AREAS.length > 0) setNewArea(ALICE_AREAS[0]);
     }
   }, [customer.addresses, addressesArray.length]);
+
+  // --- Fee Calculation Logic ---
+  const calculateFee = () => {
+    const currentArea = isNewAddress 
+        ? newArea 
+        : addressesArray.find(a => a.id === selectedAddressId)?.area;
+
+    if (!currentArea) return 0;
+
+    // Find a driver covering this area
+    const availableDriver = drivers.find(d => 
+        d.deliveryAreas && d.deliveryAreas[currentArea]
+    );
+
+    return availableDriver ? availableDriver.deliveryAreas[currentArea].baseFee : 0;
+  };
+
+  const deliveryFee = calculateFee();
+  const total = deliveryFee; 
 
   const handleParcelChange = (index: number, field: keyof ParcelItem, value: string | number) => {
     const newParcels = [...parcels];
@@ -80,9 +102,13 @@ const ParcelRequestModal: React.FC<ParcelRequestModalProps> = ({ customer, onClo
         return;
     }
 
+    if (deliveryFee === 0) {
+        if(!confirm("No drivers found for this area. The fee is R0.00. Continue?")) return;
+    }
+
     setIsSubmitting(true);
     try {
-      await onCreateParcel(pickupAddress, dropoffAddress, parcels);
+      await onCreateParcel(pickupAddress, dropoffAddress, parcels, deliveryFee, total);
     } finally {
       setIsSubmitting(false);
     }
@@ -96,31 +122,30 @@ const ParcelRequestModal: React.FC<ParcelRequestModalProps> = ({ customer, onClo
         </div>
         <form onSubmit={handleSubmit} className="p-6 max-h-[70vh] overflow-y-auto">
           <div className="space-y-6">
+            {/* Parcel Details Section */}
             <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Parcel Details</h3>
                 <div className="space-y-4">
                     {parcels.map((parcel, index) => (
                         <div key={parcel.id} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                             <div className="flex-grow">
-                                <label htmlFor={`parcel-desc-${index}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
                                 <input
                                     type="text"
-                                    id={`parcel-desc-${index}`}
                                     value={parcel.description}
                                     onChange={(e) => handleParcelChange(index, 'description', e.target.value)}
-                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    placeholder="e.g. Documents, Laptop"
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm"
+                                    placeholder="e.g. Documents"
                                     required
                                 />
                             </div>
                             <div>
-                                <label htmlFor={`parcel-qty-${index}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Qty</label>
                                 <input
                                     type="number"
-                                    id={`parcel-qty-${index}`}
                                     value={parcel.quantity}
                                     onChange={(e) => handleParcelChange(index, 'quantity', parseInt(e.target.value, 10))}
-                                    className="mt-1 block w-20 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    className="mt-1 block w-16 px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm"
                                     min="1"
                                     required
                                 />
@@ -139,66 +164,73 @@ const ParcelRequestModal: React.FC<ParcelRequestModalProps> = ({ customer, onClo
 
             <hr className="my-6 border-gray-200 dark:border-gray-600" />
             
-            <div className="mb-4">
-              <label htmlFor="pickupAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Pickup Address</label>
-              <input
-                type="text"
-                id="pickupAddress"
-                value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Enter a full address or landmark"
-                required
-              />
+            {/* Address Section */}
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Pickup Address</label>
+                    <input
+                        type="text"
+                        value={pickupAddress}
+                        onChange={(e) => setPickupAddress(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm"
+                        placeholder="Enter full address"
+                        required
+                    />
+                </div>
+
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Dropoff Address</h3>
+                    {!isNewAddress && addressesArray.length > 0 ? (
+                        <select
+                            value={selectedAddressId}
+                            onChange={(e) => setSelectedAddressId(e.target.value)}
+                            className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                        >
+                            {addressesArray.map(addr => (
+                                <option key={addr.id} value={addr.id}>{addr.area}: {addr.details}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Area</label>
+                                <select 
+                                    value={newArea} 
+                                    onChange={(e) => setNewArea(e.target.value)} 
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"
+                                >
+                                    {ALICE_AREAS.map(areaName => (
+                                        <option key={areaName} value={areaName}>{areaName}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address Details</label>
+                                <input type="text" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} placeholder="e.g. Street, House Number" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
+                            </div>
+                        </div>
+                    )}
+                    { addressesArray.length > 0 && 
+                      <button type="button" onClick={() => setIsNewAddress(!isNewAddress)} className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mt-2">
+                          {isNewAddress ? "Select from saved addresses" : "Or, enter a new address"}
+                      </button>
+                    }
+                </div>
             </div>
 
-            <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Dropoff Address</h3>
-                {!isNewAddress && addressesArray.length > 0 ? (
-                    <select
-                        value={selectedAddressId}
-                        onChange={(e) => setSelectedAddressId(e.target.value)}
-                        className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                    >
-                        {addressesArray.map(addr => (
-                            <option key={addr.id} value={addr.id}>{addr.area}: {addr.details}</option>
-                        ))}
-                    </select>
-                ) : (
-                    <div className="space-y-3">
-                        <div>
-                            <label htmlFor="area" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Area</label>
-                            <select 
-                                id="area"
-                                value={newArea} 
-                                onChange={(e) => setNewArea(e.target.value)} 
-                                className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"
-                            >
-                                {ALICE_AREAS.map(areaName => (
-                                    <option key={areaName} value={areaName}>{areaName}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="details" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address Details</label>
-                            <input type="text" id="details" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} placeholder="e.g. Street, House Number" className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600"/>
-                        </div>
-                    </div>
-                )}
-                { addressesArray.length > 0 && 
-                  <button type="button" onClick={() => setIsNewAddress(!isNewAddress)} className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mt-2">
-                      {isNewAddress ? "Select from saved addresses" : "Or, enter a new address"}
-                  </button>
-                }
+            {/* Price Display */}
+            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg flex justify-between items-center mt-6">
+                <span className="font-semibold text-gray-700 dark:text-gray-200">Estimated Delivery Fee:</span>
+                <span className="text-xl font-bold text-green-600 dark:text-green-400">R{deliveryFee.toFixed(2)}</span>
             </div>
           </div>
           
           <div className="mt-8 flex justify-end space-x-4 border-t border-gray-200 dark:border-gray-700 pt-6">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 border border-transparent rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 w-32">
-              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 w-32">
+              {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
           </div>
         </form>

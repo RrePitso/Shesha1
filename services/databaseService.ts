@@ -18,14 +18,12 @@ export const updateData = async (path: string, data: object) => {
 };
 
 // --- Helper to safely parse lists ---
-// 1. Filters out junk primitives (like "rating": 5 mixed in the list).
-// 2. Assigns the Firebase key as 'id' if the object is missing it (fixes past reviews).
 const parseFirebaseList = (data: any): any[] => {
     if (!data) return [];
     return Object.entries(data)
-        .filter(([_, value]) => value && typeof value === 'object') // Remove junk like numbers/strings
+        .filter(([_, value]) => value && typeof value === 'object')
         .map(([key, value]) => ({
-            id: key, // Use key as ID ensuring it always exists
+            id: key,
             ...(value as object)
         }));
 };
@@ -143,12 +141,12 @@ export const createOrder = async (orderData: Omit<Order, 'id'>): Promise<string>
     return newOrderRef.key!;
 };
 
-export const createParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'deliveryFee' | 'createdAt'>): Promise<string> => {
+// UPDATED: Now respects deliveryFee and total passed in parcelData
+export const createParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'createdAt'>): Promise<string> => {
     const newParcelRef = push(ref(database, 'parcels'));
     const fullParcelData = {
         ...parcelData,
         status: ParcelStatus.PENDING_DRIVER_ASSIGNMENT,
-        deliveryFee: 0, // Or calculate based on distance
         createdAt: new Date().toISOString(),
     };
     await set(newParcelRef, fullParcelData);
@@ -183,7 +181,6 @@ export const findAvailableDriver = async (customerArea: string, paymentMethod: P
         return servesArea && acceptsPayment;
     });
 
-    // Simple selection strategy: return the first available driver
     return availableDrivers.length > 0 ? availableDrivers[0] : null;
 };
 

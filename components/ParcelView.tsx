@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { Parcel, Customer, Driver, ParcelStatus, PaymentMethod, ParcelItem } from '../types';
 import ParcelRequestModal from './ParcelRequestModal';
 import ParcelStatusTracker from './ParcelStatusTracker';
-import NewPaymentModal from './NewPaymentModal'; // Re-using this modal
+import NewPaymentModal from './NewPaymentModal'; 
 import { useToast } from '../App';
 import Tabs from './Tabs';
-import { updateParcel } from '../services/databaseService'; // We need this now
+import { updateParcel } from '../services/databaseService';
 
 interface ParcelViewProps {
   parcels: Parcel[];
   drivers: Driver[];
   customer: Customer;
-  onCreateParcel: (parcelData: Omit<Parcel, 'id' | 'deliveryFee' | 'status'>) => Promise<void>;
+  // UPDATED Signature
+  onCreateParcel: (parcelData: Omit<Parcel, 'id' | 'status' | 'createdAt'>) => Promise<void>;
 }
 
 const ParcelView: React.FC<ParcelViewProps> = ({ parcels, drivers, customer, onCreateParcel }) => {
@@ -19,12 +20,15 @@ const ParcelView: React.FC<ParcelViewProps> = ({ parcels, drivers, customer, onC
   const [paymentParcel, setPaymentParcel] = useState<Parcel | null>(null);
   const { addToast } = useToast();
 
-  const handleCreateParcel = async (pickupAddress: string, dropoffAddress: string, parcels: ParcelItem[]) => {
+  // UPDATED: Now accepts deliveryFee and total
+  const handleCreateParcel = async (pickupAddress: string, dropoffAddress: string, parcels: ParcelItem[], deliveryFee: number, total: number) => {
     const newParcelData = {
       customerId: customer.id,
       pickupAddress,
       dropoffAddress,
       parcels,
+      deliveryFee,
+      total,
     };
     await onCreateParcel(newParcelData);
     setIsParcelRequestModalOpen(false);
@@ -58,6 +62,7 @@ const ParcelView: React.FC<ParcelViewProps> = ({ parcels, drivers, customer, onC
           addToast('Failed to confirm payment.', 'error');
       }
   };
+
 
   const activeParcels = parcels.filter(p => p.status !== ParcelStatus.DELIVERED);
   const completedParcels = parcels.filter(p => p.status === ParcelStatus.DELIVERED);
@@ -123,6 +128,7 @@ const ParcelView: React.FC<ParcelViewProps> = ({ parcels, drivers, customer, onC
       {isParcelRequestModalOpen && (
         <ParcelRequestModal
           customer={customer}
+          drivers={drivers}
           onClose={() => setIsParcelRequestModalOpen(false)}
           onCreateParcel={handleCreateParcel}
         />
@@ -130,7 +136,7 @@ const ParcelView: React.FC<ParcelViewProps> = ({ parcels, drivers, customer, onC
 
       {paymentParcel && paymentParcel.driverId && (
         <NewPaymentModal
-          order={paymentParcel} // The modal is flexible enough to handle a Parcel object
+          order={paymentParcel} 
           driver={drivers.find(d => d.id === paymentParcel.driverId)!}
           onClose={() => setPaymentParcel(null)}
           onConfirmPayment={handlePaymentConfirm}
