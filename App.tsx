@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import Header from './components/Header';
-import CustomerView from './components/CustomerView';
+// import CustomerView from './components/CustomerView';
 import DriverView from './components/DriverView';
-import RestaurantView from './components/RestaurantView';
-import AdminDashboard from './components/AdminDashboard';
+// import RestaurantView from './components/RestaurantView';
+// import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import AuthModal from './components/AuthModal';
 import SocialSignUp from './components/SocialSignUp';
@@ -37,15 +38,15 @@ const App: React.FC = () => {
   const [isSocialSignUpOpen, setIsSocialSignUpOpen] = useState(false);
   const [socialUser, setSocialUser] = useState<User | null>(null);
   const [isCreatingSocialProfile, setIsCreatingSocialProfile] = useState(false);
-  const [currentView, setCurrentView] = useState<AppView>(AppView.FOOD);
+  const [currentView, setCurrentView] = useState<AppView>(AppView.PARCEL);
 
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  // const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [driver, setDriver] = useState<Driver | null>(null);
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
+  // const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // const [orders, setOrders] = useState<Order[]>([]);
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,13 +104,13 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) {
       setIsLoading(false);
-      setRestaurants([]);
+      // setRestaurants([]);
       setDrivers([]);
       setCustomers([]);
       setCustomer(null);
       setDriver(null);
-      setRestaurant(null);
-      setOrders([]);
+      // setRestaurant(null);
+      // setOrders([]);
       setParcels([]);
       return;
     }
@@ -131,14 +132,14 @@ const App: React.FC = () => {
     };
 
     const unsubscribes: Array<() => void> = [
-      onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
+      // onValue(ref(database, 'restaurants'), (snapshot) => setRestaurants(firebaseObjectToArray(snapshot.val()))),
       onValue(ref(database, 'drivers'), (snapshot) => setDrivers(firebaseObjectToArray(snapshot.val()))),
-      onValue(ref(database, 'orders'), (snapshot) => {
-          const data = snapshot.val();
-          if (!data) return setOrders([]);
-          const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-          setOrders(list);
-      }),
+      // onValue(ref(database, 'orders'), (snapshot) => {
+      //     const data = snapshot.val();
+      //     if (!data) return setOrders([]);
+      //     const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+      //     setOrders(list);
+      // }),
       onValue(ref(database, 'parcels'), (snapshot) => {
         const data = snapshot.val();
         if (!data) return setParcels([]);
@@ -166,19 +167,19 @@ const App: React.FC = () => {
       setDriver(null);
     }
 
-    if (userRole === UserRole.RESTAURANT) {
-      unsubscribes.push(onValue(ref(database, `restaurants/${user.uid}`), (snapshot) => {
-        const restaurantData = snapshot.val();
-        setRestaurant(restaurantData ? parseReviewsOnly({ id: user.uid, ...restaurantData }) : null);
-      }));
-    } else {
-      setRestaurant(null);
-    }
+    // if (userRole === UserRole.RESTAURANT) {
+    //   unsubscribes.push(onValue(ref(database, `restaurants/${user.uid}`), (snapshot) => {
+    //     const restaurantData = snapshot.val();
+    //     setRestaurant(restaurantData ? parseReviewsOnly({ id: user.uid, ...restaurantData }) : null);
+    //   }));
+    // } else {
+    //   setRestaurant(null);
+    // }
 
     Promise.all([
-      get(ref(database, 'restaurants')),
+      // get(ref(database, 'restaurants')),
       get(ref(database, 'drivers')),
-      get(ref(database, 'orders')),
+      // get(ref(database, 'orders')),
       get(ref(database, 'parcels')),
       get(ref(database, 'customers'))
     ])
@@ -235,26 +236,26 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status' | 'createdAt'>, address: string) => {
-    if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
-    const restaurantObj = restaurants.find(r => r.id === orderData.restaurantId);
-    const newOrder: Omit<Order, 'id'> = {
-        ...orderData,
-        status: OrderStatus.PENDING_CONFIRMATION,
-        deliveryFee: 0,
-        total: orderData.foodTotal,
-        customerAddress: address,
-        restaurantAddress: restaurantObj?.address || 'N/A',
-        createdAt: new Date().toISOString(),
-    };
-    try {
-      await db.createOrder(newOrder);
-      addToast('Order placed successfully! Waiting for restaurant confirmation.', 'success');
-    } catch (err) {
-      console.error('createOrder failed:', err);
-      addToast('Failed to place order. Please try again.', 'error');
-    }
-  };
+  // const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'deliveryFee' | 'total' | 'status' | 'createdAt'>, address: string) => {
+  //   if (!customer) return addToast('You must be logged in as a customer to place an order.', 'error');
+  //   const restaurantObj = restaurants.find(r => r.id === orderData.restaurantId);
+  //   const newOrder: Omit<Order, 'id'> = {
+  //       ...orderData,
+  //       status: OrderStatus.PENDING_CONFIRMATION,
+  //       deliveryFee: 0,
+  //       total: orderData.foodTotal,
+  //       customerAddress: address,
+  //       restaurantAddress: restaurantObj?.address || 'N/A',
+  //       createdAt: new Date().toISOString(),
+  //   };
+  //   try {
+  //     await db.createOrder(newOrder);
+  //     addToast('Order placed successfully! Waiting for restaurant confirmation.', 'success');
+  //   } catch (err) {
+  //     console.error('createOrder failed:', err);
+  //     addToast('Failed to place order. Please try again.', 'error');
+  //   }
+  // };
 
   const handleCreateParcel = async (parcelData: Omit<Parcel, 'id' | 'status' | 'deliveryFee' | 'createdAt'>) => {
     try {
@@ -266,26 +267,26 @@ const App: React.FC = () => {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
+  // const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
+  //   const order = orders.find(o => o.id === orderId);
+  //   if (!order) return;
 
-    try {
-      if (newStatus === OrderStatus.DELIVERED) {
-          if (order.paymentMethod === PaymentMethod.PAYSHAP) {
-              await updater.updateDriverEarningsOnDelivery(orderId);
-          }
-          else if (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT) {
-              await updater.updateLedgersAndEarningsOnCashDelivery(orderId);
-          }
-      }
+  //   try {
+  //     if (newStatus === OrderStatus.DELIVERED) {
+  //         if (order.paymentMethod === PaymentMethod.PAYSHAP) {
+  //             await updater.updateDriverEarningsOnDelivery(orderId);
+  //         }
+  //         else if (order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY || order.paymentMethod === PaymentMethod.SPEEDPOINT) {
+  //             await updater.updateLedgersAndEarningsOnCashDelivery(orderId);
+  //         }
+  //     }
 
-      await db.updateOrder(orderId, { status: newStatus });
-    } catch (err) {
-      console.error('updateOrderStatus failed:', err);
-      addToast('Failed to update order status.', 'error');
-    }
- };
+  //     await db.updateOrder(orderId, { status: newStatus });
+  //   } catch (err) {
+  //     console.error('updateOrderStatus failed:', err);
+  //     addToast('Failed to update order status.', 'error');
+  //   }
+  // };
 
  const updateParcel = async (parcelId: string, updates: Partial<Parcel>) => {
   try {
@@ -296,15 +297,15 @@ const App: React.FC = () => {
   }
 };
 
- const handleAcceptOrder = async (orderId: string, driverId: string) => {
-  try {
-    await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
-    addToast('Order assigned to you! Time to pick it up.', 'success');
-  } catch (err) {
-    console.error('handleAcceptOrder failed:', err);
-    addToast('Failed to accept order.', 'error');
-  }
-};
+//  const handleAcceptOrder = async (orderId: string, driverId: string) => {
+//   try {
+//     await db.updateOrder(orderId, { driverId, status: OrderStatus.DRIVER_ASSIGNED });
+//     addToast('Order assigned to you! Time to pick it up.', 'success');
+//   } catch (err) {
+//     console.error('handleAcceptOrder failed:', err);
+//     addToast('Failed to accept order.', 'error');
+//   }
+// };
 
 const handleAcceptParcel = async (parcelId: string, driverId: string) => {
   try {
@@ -326,65 +327,65 @@ const handleAcceptParcel = async (parcelId: string, driverId: string) => {
     if(customer) db.updateCustomer(customer.id, { name, phoneNumber });
   }
 
-  const handleUpdateRestaurant = (updatedRestaurant: Restaurant) => db.updateRestaurant(updatedRestaurant.id, updatedRestaurant);
+  // const handleUpdateRestaurant = (updatedRestaurant: Restaurant) => db.updateRestaurant(updatedRestaurant.id, updatedRestaurant);
   
-  const handleDriverReview = async (orderId: string, driverId: string, rating: number, comment: string) => {
-    if (!customer) return;
-    try {
-      await db.addDriverReview(driverId, {
-        orderId,
-        customerId: customer.id,
-        customerName: customer.name,
-        rating,
-        comment,
-        reviewer: 'customer',
-        reviewee: 'driver',
-        revieweeId: driverId,
-        createdAt: ''
-      });
-      await db.updateOrder(orderId, { isDriverReviewed: true });
-      await updater.recalculateDriverRating(driverId);
-      addToast('Driver review submitted. Thank you!', 'success');
-    } catch (err) {
-      console.error('handleDriverReview failed:', err);
-      addToast('Failed to submit review.', 'error');
-    }
-  };
+  // const handleDriverReview = async (orderId: string, driverId: string, rating: number, comment: string) => {
+  //   if (!customer) return;
+  //   try {
+  //     await db.addDriverReview(driverId, {
+  //       orderId,
+  //       customerId: customer.id,
+  //       customerName: customer.name,
+  //       rating,
+  //       comment,
+  //       reviewer: 'customer',
+  //       reviewee: 'driver',
+  //       revieweeId: driverId,
+  //       createdAt: ''
+  //     });
+  //     await db.updateOrder(orderId, { isDriverReviewed: true });
+  //     await updater.recalculateDriverRating(driverId);
+  //     addToast('Driver review submitted. Thank you!', 'success');
+  //   } catch (err) {
+  //     console.error('handleDriverReview failed:', err);
+  //     addToast('Failed to submit review.', 'error');
+  //   }
+  // };
 
-  const handleRestaurantReview = async (orderId: string, restaurantId: string, rating: number, comment: string) => {
-    if (!customer) return;
-    try {
-      await db.addRestaurantReview(restaurantId, {
-        orderId,
-        customerId: customer.id,
-        customerName: customer.name,
-        rating,
-        comment,
-        reviewer: 'customer',
-        reviewee: 'restaurant',
-        revieweeId: restaurantId,
-        createdAt: ''
-      });
-      await db.updateOrder(orderId, { isRestaurantReviewed: true });
-      await updater.recalculateRestaurantRating(restaurantId);
-      addToast('Restaurant review submitted. Thank you!', 'success');
-    } catch (err) {
-      console.error('handleRestaurantReview failed:', err);
-      addToast('Failed to submit review.', 'error');
-    }
-  };
+  // const handleRestaurantReview = async (orderId: string, restaurantId: string, rating: number, comment: string) => {
+  //   if (!customer) return;
+  //   try {
+  //     await db.addRestaurantReview(restaurantId, {
+  //       orderId,
+  //       customerId: customer.id,
+  //       customerName: customer.name,
+  //       rating,
+  //       comment,
+  //       reviewer: 'customer',
+  //       reviewee: 'restaurant',
+  //       revieweeId: restaurantId,
+  //       createdAt: ''
+  //     });
+  //     await db.updateOrder(orderId, { isRestaurantReviewed: true });
+  //     await updater.recalculateRestaurantRating(restaurantId);
+  //     addToast('Restaurant review submitted. Thank you!', 'success');
+  //   } catch (err) {
+  //     console.error('handleRestaurantReview failed:', err);
+  //     addToast('Failed to submit review.', 'error');
+  //   }
+  // };
   
-  const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[]) => db.updateRestaurant(restaurantId, { menu: newMenu });
+  // const handleUpdateMenu = (restaurantId: string, newMenu: MenuItem[]) => db.updateRestaurant(restaurantId, { menu: newMenu });
 
-  const handleSettleLedger = async (restaurantId: string, driverId: string) => {
-    try {
-      await updater.settleLedger(restaurantId, driverId);
-      addToast('Ledger settled successfully.', 'success');
-    } catch (err) {
-      console.error('handleSettleLedger failed:', err);
-      addToast('Failed to settle ledger.', 'error');
-    }
-  };
+  // const handleSettleLedger = async (restaurantId: string, driverId: string) => {
+  //   try {
+  //     await updater.settleLedger(restaurantId, driverId);
+  //     addToast('Ledger settled successfully.', 'success');
+  //   } catch (err) {
+  //     console.error('handleSettleLedger failed:', err);
+  //     addToast('Failed to settle ledger.', 'error');
+  //   }
+  // };
 
   const handleChangePassword = async (oldPassword: string, newPassword: string) => {
     try {
@@ -414,21 +415,18 @@ const handleAcceptParcel = async (parcelId: string, driverId: string) => {
     switch (userRole) {
       case UserRole.CUSTOMER:
         if (!customer) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        if (currentView === AppView.PARCEL) {
-          return <ParcelView {...{parcels: parcels.filter(p => p.customerId === user.uid), drivers, customer, onCreateParcel: handleCreateParcel}} />;
-        }
-        return <CustomerView {...{restaurants, orders: orders.filter(o => o.customerId === user.uid), drivers, customer, onPlaceOrder: handlePlaceOrder, onUpdateAddresses: handleUpdateAddresses, onUpdateProfile: handleUpdateCustomerProfile, onDriverReview: handleDriverReview, onRestaurantReview: handleRestaurantReview}} />;
+        return <ParcelView {...{parcels: parcels.filter(p => p.customerId === user.uid), drivers, customer, onCreateParcel: handleCreateParcel}} />;
       
       case UserRole.DRIVER:
         if (!driver) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        return <DriverView {...{driver, orders, parcels, restaurants, customers, updateOrderStatus, updateParcel, acceptOrder: handleAcceptOrder, acceptParcel: handleAcceptParcel, onUpdateDriver: handleUpdateDriver}} />;
+        return <DriverView {...{driver, orders: [], parcels, restaurants: [], customers, updateOrderStatus: () => {}, updateParcel, acceptOrder: () => {}, acceptParcel: handleAcceptParcel, onUpdateDriver: handleUpdateDriver}} />;
 
-      case UserRole.RESTAURANT:
-        if (!restaurant) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
-        return <RestaurantView {...{restaurant, customers, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
+      // case UserRole.RESTAURANT:
+      //   if (!restaurant) return <div className="flex justify-center items-center h-screen"><Spinner /></div>;
+      //   return <RestaurantView {...{restaurant, customers, orders: orders.filter(o => o.restaurantId === user.uid), drivers, updateOrderStatus, updateMenu: (menu) => handleUpdateMenu(user.uid, menu), settleLedger: (driverId) => handleSettleLedger(user.uid, driverId), onUpdateRestaurant: handleUpdateRestaurant}} />;
       
-      case UserRole.ADMIN:
-        return <AdminDashboard {...{orders, restaurants, drivers, onUpdateRestaurant: handleUpdateRestaurant, onChangePassword: handleChangePassword}} />;
+      // case UserRole.ADMIN:
+      //   return <AdminDashboard {...{orders, restaurants, drivers, onUpdateRestaurant: handleUpdateRestaurant, onChangePassword: handleChangePassword}} />;
 
       default:
         return <div className="flex justify-center items-center h-screen"><p>Unrecognized role.</p></div>;
