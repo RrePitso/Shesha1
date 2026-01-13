@@ -19,41 +19,56 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
+  // 1. Determine the base cost and the target address string
   const baseTotal = isParcel ? (order as Parcel).goodsCost || 0 : (order as Order).foodTotal;
   const address = isParcel ? (order as Parcel).dropoffAddress : (order as Order).customerAddress;
 
+  // 2. Normalize driver areas for case-insensitive lookup
   const normalizedDeliveryAreas = useMemo(() => {
-    const map: { [k: string]: { baseFee: number } } = {};
+    const map: { [k: string]: number } = {};
     if (driver?.deliveryAreas) {
       Object.entries(driver.deliveryAreas).forEach(([k, v]) => {
-        if (typeof k === 'string') map[k.trim().toLowerCase()] = v;
+        // FIX: Check if 'v' is a direct number (DriverEditProfileModal format) 
+        // OR an object with baseFee (types.ts format).
+        let fee = 0;
+        if (typeof v === 'number') {
+            fee = v;
+        } else if (typeof v === 'object' && v !== null) {
+            fee = (v as any).baseFee ?? 0;
+        }
+
+        if (typeof k === 'string') {
+          map[k.trim().toLowerCase()] = fee;
+        }
       });
     }
     return map;
   }, [driver.deliveryAreas]);
 
+  // 3. Strict Area Extraction Logic (Matching "Area: Details" format)
   const getAreaFee = (addressString?: string): number => {
     if (!addressString) return 0;
     const lowerAddress = addressString.toLowerCase();
 
-    // First, try to parse with a colon (format for customer food orders).
-    const parts = lowerAddress.split(':');
-    if (parts.length > 1) {
-        const areaFromAddress = parts[0].trim();
-        if (normalizedDeliveryAreas[areaFromAddress]) {
-            return normalizedDeliveryAreas[areaFromAddress].baseFee ?? 0;
-        }
+    // The app strictly follows the "Area Name: Specific Location" format.
+    // We strictly extract the part BEFORE the colon to find the price.
+    
+    // Step A: Check for the Colon Format (Primary)
+    if (lowerAddress.includes(':')) {
+      const parts = lowerAddress.split(':');
+      // The area is always the first part (e.g., "Ntselamanzi" from "Ntselamanzi: House 10")
+      const areaName = parts[0].trim();
+      
+      // Look up the simple fee number directly from our normalized map
+      if (normalizedDeliveryAreas[areaName] !== undefined) {
+        return normalizedDeliveryAreas[areaName];
+      }
     }
 
-    // If no colon/match, search for any defined area names within the full address string (for parcels).
-    const knownAreas = Object.keys(normalizedDeliveryAreas);
-    // Find the longest matching area to avoid ambiguity (e.g. "somerset" vs "somerset west")
-    const matchingArea = knownAreas
-        .filter(area => lowerAddress.includes(area))
-        .sort((a, b) => b.length - a.length)[0]; // Get the longest match
-
-    if (matchingArea) {
-        return normalizedDeliveryAreas[matchingArea].baseFee ?? 0;
+    // Step B: Direct Match Fallback
+    // If the user somehow saved JUST the area name without details.
+    if (normalizedDeliveryAreas[lowerAddress.trim()] !== undefined) {
+        return normalizedDeliveryAreas[lowerAddress.trim()];
     }
 
     return 0;
@@ -61,7 +76,9 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
 
   const getPaymentFee = (method: PaymentMethod | null): number => {
     if (!method) return 0;
-    return driver.fees?.[method]?.baseFee ?? (driver as any).baseFee ?? 0;
+    // Cast driver to any because 'fees' might not be explicitly defined in the Driver interface
+    const d = driver as any;
+    return d.fees?.[method]?.baseFee ?? d.baseFee ?? 0;
   };
 
   const computeAndSetFees = (method: PaymentMethod | null) => {
@@ -105,7 +122,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
       computeAndSetFees(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driver.acceptedPaymentMethods, baseTotal, driver.deliveryAreas]);
+  }, [driver.acceptedPaymentMethods, baseTotal, driver.deliveryAreas, address]);
 
   return (
     <div
@@ -154,7 +171,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
             </div>
 
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
-              <span>Area Fee:</span>
+              <span>Area Fee ({isParcel ? 'Parcel' : 'Order'}):</span>
               <span className="font-medium">R{areaFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
