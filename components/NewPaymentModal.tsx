@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { usePaystackPayment } from 'react-paystack';
+// import { usePaystackPayment } from 'react-paystack'; // <--- COMMENTED OUT
+// import { httpsCallable } from 'firebase/functions'; // <--- COMMENTED OUT
+// import { functions } from '../firebase'; // <--- COMMENTED OUT
 import { Order, Parcel, Driver, PaymentMethod } from '../types';
 import Spinner from './Spinner';
 
@@ -13,7 +15,7 @@ interface NewPaymentModalProps {
 }
 
 // Your Public Key
-const PAYSTACK_PUBLIC_KEY = 'pk_test_54f1e752bcd4d78de0d920580a52c6077cbca746';
+// const PAYSTACK_PUBLIC_KEY = 'pk_test_54f1e752bcd4d78de0d920580a52c6077cbca746'; // <--- COMMENTED OUT
 
 const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ 
   order, 
@@ -96,7 +98,8 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({
     computeAndSetFees(method);
   };
 
-  // --- Paystack Configuration ---
+  // --- Paystack Configuration (COMMENTED OUT) ---
+  /*
   const paystackConfig = {
     reference: (new Date()).getTime().toString(),
     email: customerEmail || "no-email@example.com",
@@ -106,28 +109,45 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({
   };
 
   const initializePaystack = usePaystackPayment(paystackConfig);
+  */
 
   const handleConfirm = async () => {
     if (!selectedMethod) return;
     setIsLoading(true);
 
-    // --- Paystack Interception ---
+    // --- Paystack Interception (COMMENTED OUT) ---
+    /*
     if (selectedMethod === PaymentMethod.PAYSTACK) {
         initializePaystack({
-            onSuccess: (reference: any) => {
-                // Payment successful
-                onConfirmPayment(order.id, selectedMethod, deliveryFee, total);
-                handleClose();
+            onSuccess: async (reference: any) => {
+                setIsLoading(true);
+                try {
+                    const verifyFn = httpsCallable(functions, 'verifyPaystackPayment');
+                    const refString = reference.reference; 
+
+                    await verifyFn({
+                        reference: refString,
+                        orderId: order.id,
+                        amount: total
+                    });
+
+                    handleClose();
+                } catch (error) {
+                    console.error("Verification failed:", error);
+                    alert("Payment received, but verification failed. Please contact support.");
+                } finally {
+                    setIsLoading(false);
+                }
             },
             onClose: () => {
-                // User closed popup
                 setIsLoading(false);
             }
         });
         return;
     }
+    */
 
-    // --- Other Methods ---
+    // --- Other Methods (Standard Flow) ---
     try {
       await onConfirmPayment(order.id, selectedMethod, deliveryFee, total);
       handleClose();
@@ -146,9 +166,17 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({
   useEffect(() => {
     setIsVisible(true);
     if (driver.acceptedPaymentMethods && driver.acceptedPaymentMethods.length > 0) {
-      const defaultMethod = driver.acceptedPaymentMethods[0];
-      setSelectedMethod(defaultMethod);
-      computeAndSetFees(defaultMethod);
+      // FIX: Filter out Paystack from default selection logic
+      const validMethods = driver.acceptedPaymentMethods.filter(m => m !== PaymentMethod.PAYSTACK);
+      
+      if (validMethods.length > 0) {
+        const defaultMethod = validMethods[0];
+        setSelectedMethod(defaultMethod);
+        computeAndSetFees(defaultMethod);
+      } else {
+        setSelectedMethod(null);
+        computeAndSetFees(null);
+      }
     } else {
       computeAndSetFees(null);
     }
@@ -176,20 +204,23 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({
             <h3 className="font-semibold text-green-900 dark:text-gray-200 mb-3">Select a Payment Method:</h3>
             <div className="space-y-3">
               {(driver.acceptedPaymentMethods && driver.acceptedPaymentMethods.length > 0) ? (
-                driver.acceptedPaymentMethods.map(method => {
-                  const paymentF = getPaymentFee(method);
-                  return (
-                    <div
-                      key={method}
-                      onClick={() => handleMethodSelect(method)}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method ? 'border-primary-orange bg-orange-50 dark:bg-orange-900/50' : 'border-gray-300 dark:border-gray-600 hover:border-secondary-orange'}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{method}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Payment method fee: <span className="font-semibold">R{paymentF.toFixed(2)}</span></p>
+                driver.acceptedPaymentMethods
+                  // --- CRITICAL FIX: Hide Paystack from UI ---
+                  .filter(method => method !== PaymentMethod.PAYSTACK)
+                  .map(method => {
+                    const paymentF = getPaymentFee(method);
+                    return (
+                      <div
+                        key={method}
+                        onClick={() => handleMethodSelect(method)}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method ? 'border-primary-orange bg-orange-50 dark:bg-orange-900/50' : 'border-gray-300 dark:border-gray-600 hover:border-secondary-orange'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-lg text-gray-900 dark:text-white">{method}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">Payment method fee: <span className="font-semibold">R{paymentF.toFixed(2)}</span></p>
+                        </div>
                       </div>
-                    </div>
-                  );
+                    );
                 })
               ) : (
                 <p className="text-center text-gray-500 dark:text-gray-400">This driver has not set up any payment methods.</p>

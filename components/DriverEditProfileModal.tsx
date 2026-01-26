@@ -178,7 +178,10 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
             {activeTab === 'payments' && (
                 <div className="space-y-3">
                     <p className='text-sm text-gray-500 dark:text-gray-400'>Select the payment methods you accept and set the corresponding fees.</p>
-                    {Object.values(PaymentMethod).map(method => (
+                    {/* HIDE PAYSTACK: Filter it out of the displayed list */}
+                    {Object.values(PaymentMethod)
+                        .filter(method => method !== PaymentMethod.PAYSTACK) // <--- ADDED FILTER HERE
+                        .map(method => (
                         <div key={method} className="p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                             <label className="flex items-center justify-between cursor-pointer">
                                 <span className="font-semibold text-gray-800 dark:text-gray-200">{method}</span>
