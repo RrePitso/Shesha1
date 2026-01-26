@@ -86,6 +86,7 @@ export enum PaymentMethod {
   CASH_ON_DELIVERY = 'Cash on Delivery',
   SPEEDPOINT = 'Speedpoint',
   PAYSHAP = 'PayShap',
+  PAYSTACK = 'Paystack', // <--- Add this line
 }
 
 export interface Order {

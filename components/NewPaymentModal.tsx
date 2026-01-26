@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { usePaystackPayment } from 'react-paystack';
 import { Order, Parcel, Driver, PaymentMethod } from '../types';
 import Spinner from './Spinner';
 
@@ -8,9 +9,20 @@ interface NewPaymentModalProps {
   onClose: () => void;
   onConfirmPayment: (orderId: string, paymentMethod: PaymentMethod, deliveryFee: number, total: number) => Promise<void>;
   isParcel?: boolean;
+  customerEmail?: string;
 }
 
-const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClose, onConfirmPayment, isParcel = false }) => {
+// Your Public Key
+const PAYSTACK_PUBLIC_KEY = 'pk_test_54f1e752bcd4d78de0d920580a52c6077cbca746';
+
+const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ 
+  order, 
+  driver, 
+  onClose, 
+  onConfirmPayment, 
+  isParcel = false, 
+  customerEmail 
+}) => {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [areaFee, setAreaFee] = useState(0);
   const [paymentFee, setPaymentFee] = useState(0);
@@ -28,8 +40,6 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
     const map: { [k: string]: number } = {};
     if (driver?.deliveryAreas) {
       Object.entries(driver.deliveryAreas).forEach(([k, v]) => {
-        // FIX: Check if 'v' is a direct number (DriverEditProfileModal format) 
-        // OR an object with baseFee (types.ts format).
         let fee = 0;
         if (typeof v === 'number') {
             fee = v;
@@ -45,28 +55,19 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
     return map;
   }, [driver.deliveryAreas]);
 
-  // 3. Strict Area Extraction Logic (Matching "Area: Details" format)
+  // 3. Strict Area Extraction Logic
   const getAreaFee = (addressString?: string): number => {
     if (!addressString) return 0;
     const lowerAddress = addressString.toLowerCase();
 
-    // The app strictly follows the "Area Name: Specific Location" format.
-    // We strictly extract the part BEFORE the colon to find the price.
-    
-    // Step A: Check for the Colon Format (Primary)
     if (lowerAddress.includes(':')) {
       const parts = lowerAddress.split(':');
-      // The area is always the first part (e.g., "Ntselamanzi" from "Ntselamanzi: House 10")
       const areaName = parts[0].trim();
-      
-      // Look up the simple fee number directly from our normalized map
       if (normalizedDeliveryAreas[areaName] !== undefined) {
         return normalizedDeliveryAreas[areaName];
       }
     }
 
-    // Step B: Direct Match Fallback
-    // If the user somehow saved JUST the area name without details.
     if (normalizedDeliveryAreas[lowerAddress.trim()] !== undefined) {
         return normalizedDeliveryAreas[lowerAddress.trim()];
     }
@@ -76,7 +77,6 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
 
   const getPaymentFee = (method: PaymentMethod | null): number => {
     if (!method) return 0;
-    // Cast driver to any because 'fees' might not be explicitly defined in the Driver interface
     const d = driver as any;
     return d.fees?.[method]?.baseFee ?? d.baseFee ?? 0;
   };
@@ -96,14 +96,45 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
     computeAndSetFees(method);
   };
 
+  // --- Paystack Configuration ---
+  const paystackConfig = {
+    reference: (new Date()).getTime().toString(),
+    email: customerEmail || "no-email@example.com",
+    amount: Math.round(total * 100), // Paystack expects cents
+    publicKey: PAYSTACK_PUBLIC_KEY,
+    currency: 'ZAR',
+  };
+
+  const initializePaystack = usePaystackPayment(paystackConfig);
+
   const handleConfirm = async () => {
     if (!selectedMethod) return;
     setIsLoading(true);
+
+    // --- Paystack Interception ---
+    if (selectedMethod === PaymentMethod.PAYSTACK) {
+        initializePaystack({
+            onSuccess: (reference: any) => {
+                // Payment successful
+                onConfirmPayment(order.id, selectedMethod, deliveryFee, total);
+                handleClose();
+            },
+            onClose: () => {
+                // User closed popup
+                setIsLoading(false);
+            }
+        });
+        return;
+    }
+
+    // --- Other Methods ---
     try {
       await onConfirmPayment(order.id, selectedMethod, deliveryFee, total);
+      handleClose();
+    } catch (error) {
+        console.error(error);
     } finally {
       setIsLoading(false);
-      handleClose();
     }
   };
 
@@ -130,15 +161,17 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
       onClick={handleClose}
     >
       <div
-        className={`bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transition-all duration-300 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transition-all duration-300 flex flex-col max-h-[90vh] ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h2 className="text-2xl font-bold text-green-900 dark:text-white">Confirm Your Payment</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Choose a payment method to see the fee breakdown.</p>
         </div>
 
-        <div className="p-6 space-y-4">
+        {/* Scrollable Content */}
+        <div className="p-6 space-y-4 overflow-y-auto flex-grow">
           <div>
             <h3 className="font-semibold text-green-900 dark:text-gray-200 mb-3">Select a Payment Method:</h3>
             <div className="space-y-3">
@@ -190,7 +223,8 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
           </div>
         </div>
 
-        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 flex justify-end space-x-2 border-t border-gray-200 dark:border-gray-700">
+        {/* Footer Buttons */}
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 flex justify-end space-x-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           <button
             type="button"
             onClick={handleClose}
@@ -201,7 +235,8 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ order, driver, onClos
           <button
             type="button"
             onClick={handleConfirm}
-            className="px-4 py-2 bg-primary-orange text-white rounded-md hover:bg-secondary-orange font-semibold flex items-center space-x-2"
+            className={`px-4 py-2 bg-primary-orange text-white rounded-md font-semibold flex items-center space-x-2 
+              ${(!selectedMethod || isLoading) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-secondary-orange'}`}
             disabled={!selectedMethod || isLoading}
           >
             {isLoading ? <Spinner /> : `Confirm ${selectedMethod || ''}`}

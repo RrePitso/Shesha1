@@ -221,6 +221,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({
           driver={paymentOrderDriver}
           onClose={() => setPaymentOrder(null)}
           onConfirmPayment={handlePaymentConfirm}
+          customerEmail={customer.email} // Pass email to modal
         />
       )}
 
