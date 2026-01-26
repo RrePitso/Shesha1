@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import Header from './components/Header';
 // import CustomerView from './components/CustomerView';
@@ -290,6 +289,10 @@ const App: React.FC = () => {
 
  const updateParcel = async (parcelId: string, updates: Partial<Parcel>) => {
   try {
+    if (updates.status === ParcelStatus.DELIVERED) {
+       await updater.updateDriverEarningsOnParcelDelivery(parcelId);
+    }
+
     await db.updateParcel(parcelId, updates);
   } catch (err) {
     console.error('updateParcel failed:', err);

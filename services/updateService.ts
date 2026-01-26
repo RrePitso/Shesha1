@@ -1,4 +1,4 @@
-import { Order, Driver, Restaurant, Review } from '../types';
+import { Order, Driver, Restaurant, Review, Parcel } from '../types';
 import * as db from './databaseService';
 
 /**
@@ -42,6 +42,28 @@ export const updateDriverEarningsOnDelivery = async (orderId: string) => {
     const newDriverEarnings = {
         ...(driver.earnings || {}),
         [order.id]: order.deliveryFee
+    };
+    await db.updateDriver(driver.id, { earnings: newDriverEarnings });
+}
+
+/**
+ * NEW: Updates driver's earnings when a Parcel is delivered.
+ * This ensures the fee appears in the "Total Earnings" on the dashboard.
+ */
+export const updateDriverEarningsOnParcelDelivery = async (parcelId: string) => {
+    // FIX: Use the exported helper function instead of trying to access db.database
+    const parcel = await db.getParcel(parcelId);
+
+    if (!parcel || !parcel.driverId) return;
+
+    const driver = await db.getDriver(parcel.driverId);
+    if (!driver) return;
+
+    const earning = (parcel.total || 0) - (parcel.goodsCost || 0);
+
+    const newDriverEarnings = {
+        ...(driver.earnings || {}),
+        [parcel.id]: earning
     };
     await db.updateDriver(driver.id, { earnings: newDriverEarnings });
 }

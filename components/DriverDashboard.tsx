@@ -2,8 +2,8 @@ import React from 'react';
 import { Driver, Order, Restaurant, OrderStatus, Customer, Parcel, ParcelStatus } from '../types';
 import DeliveryRequestCard from './DeliveryRequestCard';
 import ActiveDelivery from './ActiveDelivery';
-import ParcelRequestCard from './ParcelRequestCard'; // New component for parcels
-import ActiveParcel from './ActiveParcel'; // New component for active parcels
+import ParcelRequestCard from './ParcelRequestCard'; 
+import ActiveParcel from './ActiveParcel'; 
 
 interface DriverDashboardProps {
   driver: Driver;
@@ -214,7 +214,7 @@ const DriverDashboard: React.FC<DriverDashboardProps> = ({
                                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#{parcel.id.slice(0, 6)}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Parcel Pickup</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{parcel.pickupAddress} to {parcel.dropoffAddress}</td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-green-600 dark:text-green-400">R{parcel.deliveryFee.toFixed(2)}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-green-600 dark:text-green-400">R{(parcel.deliveryFee || 0).toFixed(2)}</td>
                                   </tr>
                               ))}
                           </tbody>
