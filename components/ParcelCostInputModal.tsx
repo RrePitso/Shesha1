@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ParcelOrder } from '../types';
+import { Parcel } from '../types'; // FIX: Changed from ParcelOrder (which doesn't exist) to Parcel
 
 interface ParcelCostInputModalProps {
-  order: ParcelOrder;
+  order: Parcel; // FIX: Updated type here
   onClose: () => void;
   onSetCost: (orderId: string, cost: number) => void;
 }
@@ -24,7 +24,7 @@ const ParcelCostInputModal: React.FC<ParcelCostInputModalProps> = ({ order, onCl
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm">
         <div className="p-5 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Set Parcel Item Cost</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Order ID: #{order.id.slice(-6)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Order ID: #{order.id.slice(0, 6)}</p>
         </div>
 
         <div className="p-6 space-y-4">

@@ -3,22 +3,55 @@ import { signUpWithEmailPassword } from '../services/authService';
 import { UserRole } from '../types';
 import { ALICE_AREAS } from '../constants';
 
-const SignUp = ({ onLoginClick }) => {
+// Simple types for props
+interface SignUpProps {
+  onLoginClick: () => void;
+}
+
+const SignUp: React.FC<SignUpProps> = ({ onLoginClick }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.CUSTOMER);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Profile Data States
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  
+  // Customer Specific
   const [area, setArea] = useState(ALICE_AREAS[0]);
   const [addressDetails, setAddressDetails] = useState('');
+  
+  // Restaurant Specific
   const [cuisine, setCuisine] = useState('');
   const [restaurantAddress, setRestaurantAddress] = useState('');
+  
+  // Driver Specific
   const [vehicle, setVehicle] = useState('');
+  // New State for Driver Delivery Areas: Map of Area Name -> Cost
+  const [selectedAreas, setSelectedAreas] = useState<{[key: string]: string}>({}); 
 
-  const handleSignUp = async (e) => {
+  const handleAreaToggle = (areaName: string) => {
+    setSelectedAreas(prev => {
+        const newAreas = { ...prev };
+        if (newAreas[areaName]) {
+            delete newAreas[areaName]; // Uncheck/Remove
+        } else {
+            newAreas[areaName] = '20'; // Default start price
+        }
+        return newAreas;
+    });
+  };
+
+  const handleAreaCostChange = (areaName: string, cost: string) => {
+    setSelectedAreas(prev => ({
+        ...prev,
+        [areaName]: cost
+    }));
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
@@ -30,6 +63,14 @@ const SignUp = ({ onLoginClick }) => {
     }
 
     try {
+      // Format driver areas for the database
+      const formattedDeliveryAreas: {[key: string]: { baseFee: number }} = {};
+      if (role === UserRole.DRIVER) {
+        Object.entries(selectedAreas).forEach(([area, cost]) => {
+            formattedDeliveryAreas[area] = { baseFee: parseFloat(cost as string) || 0 };
+        });
+      }
+
       const profileData = {
         name,
         email,
@@ -47,18 +88,23 @@ const SignUp = ({ onLoginClick }) => {
         }),
         ...(role === UserRole.DRIVER && { 
             vehicle,
+            phoneNumber, // Drivers also need phone numbers!
             isAvailable: true,
             rating: { average: 0, count: 0 },
+            deliveryAreas: formattedDeliveryAreas,
+            acceptedPaymentMethods: ['Cash on Delivery', 'PayShap'] // Default defaults
         }),
       };
 
       await signUpWithEmailPassword(email, password, role, profileData);
 
-    } catch (err) {
+    } catch (error: any) {
+      // FIX: Cast error to 'any' to ensure we can access .code and .message properties
+      const err = error as any; 
       if (err.code === 'auth/email-already-in-use') {
         setError('This email address is already in use. Please try another email or log in.');
       } else {
-        const friendlyMessage = err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)/, '').trim();
+        const friendlyMessage = (err.message || '').replace('Firebase: ', '').replace(/\(auth\/.*\)/, '').trim();
         setError(friendlyMessage || 'An unexpected error occurred. Please try again.');
       }
     } finally {
@@ -98,7 +144,36 @@ const SignUp = ({ onLoginClick }) => {
       case UserRole.DRIVER:
         return (
           <>
+            <InputField id="phone" type="tel" placeholder="Phone Number" value={phoneNumber} onChange={setPhoneNumber} required />
             <InputField id="vehicle" type="text" placeholder="Vehicle (e.g., Toyota Camry)" value={vehicle} onChange={setVehicle} required />
+            
+            <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Areas & Fees (R)</label>
+                <div className="space-y-2 max-h-48 overflow-y-auto border p-2 rounded-md">
+                    {ALICE_AREAS.map(areaName => (
+                        <div key={areaName} className="flex items-center justify-between">
+                            <label className="flex items-center space-x-2 text-sm text-gray-900">
+                                <input 
+                                    type="checkbox" 
+                                    checked={!!selectedAreas[areaName]}
+                                    onChange={() => handleAreaToggle(areaName)}
+                                    className="rounded text-primary-orange focus:ring-primary-orange"
+                                />
+                                <span>{areaName}</span>
+                            </label>
+                            {selectedAreas[areaName] && (
+                                <input 
+                                    type="number" 
+                                    value={selectedAreas[areaName]}
+                                    onChange={(e) => handleAreaCostChange(areaName, e.target.value)}
+                                    className="w-20 px-2 py-1 text-sm border rounded focus:ring-primary-orange"
+                                    placeholder="Fee"
+                                />
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
           </>
         );
       default: return null;
@@ -157,7 +232,7 @@ const SignUp = ({ onLoginClick }) => {
           <span className="text-gray-800">
             Already have an account?{' '}
           </span>
-          <button onClick={onLoginClick} className="font-medium text-primary-orange hover:text-secondary-orange">
+          <button type="button" onClick={onLoginClick} className="font-medium text-primary-orange hover:text-secondary-orange">
             Login
           </button>
         </p>
@@ -166,7 +241,7 @@ const SignUp = ({ onLoginClick }) => {
   );
 };
 
-const InputField = ({ id, type, placeholder, value, onChange, required = false }) => (
+const InputField = ({ id, type, placeholder, value, onChange, required = false }: any) => (
     <div>
         <label htmlFor={id} className="sr-only">{placeholder}</label>
         <input

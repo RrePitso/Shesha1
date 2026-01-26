@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Parcel, Customer, ParcelStatus } from '../types';
-import GoodsCostModal from './GoodsCostModal'; // We will create this component
+import ParcelCostInputModal from './ParcelCostInputModal'; // Corrected Import
 
 interface ActiveParcelProps {
   parcel: Parcel;
@@ -9,23 +9,27 @@ interface ActiveParcelProps {
 }
 
 const ActiveParcel: React.FC<ActiveParcelProps> = ({ parcel, customer, updateParcel }) => {
-  const [isGoodsCostModalOpen, setIsGoodsCostModalOpen] = useState(false);
+  const [isCostModalOpen, setIsCostModalOpen] = useState(false);
 
+  // Helper to handle the transition to 'IN_TRANSIT' or 'PENDING_PAYMENT'
   const handleStatusUpdate = (status: ParcelStatus) => {
+    // When the driver picks up the parcel, we ask them to set the cost
     if (status === ParcelStatus.IN_TRANSIT) {
-      // Instead of directly updating, we open the modal first.
-      setIsGoodsCostModalOpen(true);
+      setIsCostModalOpen(true);
     } else {
       updateParcel(parcel.id, { status });
     }
   };
 
-  const handleGoodsCostSubmit = (cost: number) => {
+  // Called when the driver submits the cost from the Modal
+  const handleCostSubmit = (id: string, cost: number) => {
+    // We update the parcel with the cost and move status to PENDING_PAYMENT
+    // This allows the Customer to see the "Pay Now" button
     updateParcel(parcel.id, { 
       status: ParcelStatus.PENDING_PAYMENT, 
       goodsCost: cost
     });
-    setIsGoodsCostModalOpen(false);
+    setIsCostModalOpen(false);
   };
 
   const getActionForStatus = (status: ParcelStatus) => {
@@ -35,7 +39,8 @@ const ActiveParcel: React.FC<ActiveParcelProps> = ({ parcel, customer, updatePar
       case ParcelStatus.AT_PICKUP:
         return <button onClick={() => handleStatusUpdate(ParcelStatus.IN_TRANSIT)} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300">I have picked up the parcel</button>;
       case ParcelStatus.AWAITING_DRIVER_CONFIRMATION:
-          return <button onClick={() => updateParcel(parcel.id, { status: ParcelStatus.IN_TRANSIT })} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300">Confirm Customer Payment</button>;
+          // Driver confirms they received the notification/cash
+          return <button onClick={() => updateParcel(parcel.id, { status: ParcelStatus.IN_TRANSIT })} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300">Confirm Payment Received</button>;
       case ParcelStatus.IN_TRANSIT:
           return <button onClick={() => handleStatusUpdate(ParcelStatus.AT_DROPOFF)} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300">I have arrived at the dropoff location</button>;
       case ParcelStatus.AT_DROPOFF:
@@ -92,10 +97,11 @@ const ActiveParcel: React.FC<ActiveParcelProps> = ({ parcel, customer, updatePar
         </div>
       </div>
 
-      {isGoodsCostModalOpen && (
-        <GoodsCostModal
-          onClose={() => setIsGoodsCostModalOpen(false)}
-          onSubmit={handleGoodsCostSubmit}
+      {isCostModalOpen && (
+        <ParcelCostInputModal
+          order={parcel}
+          onClose={() => setIsCostModalOpen(false)}
+          onSetCost={handleCostSubmit}
         />
       )}
     </>
