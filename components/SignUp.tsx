@@ -117,7 +117,14 @@ const SignUp: React.FC<SignUpProps> = ({ onLoginClick }) => {
       case UserRole.CUSTOMER:
         return (
           <>
-            <InputField id="phone" type="tel" placeholder="Phone Number" value={phoneNumber} onChange={setPhoneNumber} required />
+            <InputField 
+                id="phone" 
+                type="tel" 
+                placeholder="Mobile Number (WhatsApp enabled)" 
+                value={phoneNumber} 
+                onChange={setPhoneNumber} 
+                required 
+            />
             <div className="relative">
                 <select 
                     id="area"
@@ -144,7 +151,14 @@ const SignUp: React.FC<SignUpProps> = ({ onLoginClick }) => {
       case UserRole.DRIVER:
         return (
           <>
-            <InputField id="phone" type="tel" placeholder="Phone Number" value={phoneNumber} onChange={setPhoneNumber} required />
+            <InputField 
+                id="phone" 
+                type="tel" 
+                placeholder="Mobile Number (WhatsApp enabled)" 
+                value={phoneNumber} 
+                onChange={setPhoneNumber} 
+                required 
+            />
             <InputField id="vehicle" type="text" placeholder="Vehicle (e.g., Toyota Camry)" value={vehicle} onChange={setVehicle} required />
             
             <div className="mt-4">

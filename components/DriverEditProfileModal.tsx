@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Driver, PaymentMethod } from '../types'; // Removed FeeStructure from import
+import { Driver, PaymentMethod } from '../types'; 
 import Spinner from './Spinner';
 import { ALICE_AREAS } from '../constants';
 
-// Define the missing interface locally
 interface FeeStructure {
   baseFee: number;
 }
@@ -18,11 +17,11 @@ interface DriverEditProfileModalProps {
 const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver, onSave, onClose, initialTab = 'profile' }) => {
   const [name, setName] = useState('');
   const [vehicle, setVehicle] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState(''); // <--- Added this state
   const [paymentPhone, setPaymentPhone] = useState('');
   const [acceptedMethods, setAcceptedMethods] = useState<PaymentMethod[]>([]);
   const [fees, setFees] = useState<{[key in PaymentMethod]?: FeeStructure}>({});
   
-  // FIX: State matches the types.ts structure { [area: string]: { baseFee: number } }
   const [deliveryAreas, setDeliveryAreas] = useState<{ [area: string]: { baseFee: number } }>({});
   
   const [isLoading, setIsLoading] = useState(false);
@@ -32,18 +31,20 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
   useEffect(() => {
     setIsVisible(true);
     setName(driver.name || '');
-    setVehicle(driver.vehicle?.make ? `${driver.vehicle.make} ${driver.vehicle.model}` : (driver.vehicle as any) || '');
-    setPaymentPhone(driver.paymentPhoneNumber || '');
+    // Handle vehicle being string or object
+    setVehicle(driver.vehicleDetails ? `${driver.vehicleDetails.make} ${driver.vehicleDetails.model}` : (driver as any).vehicle || '');
+    
+    setPhoneNumber(driver.phoneNumber || ''); // <--- Load existing phone number
+    setPaymentPhone(driver.paymentPhoneNumber || ''); // This is specifically for PayShap
     setAcceptedMethods(driver.acceptedPaymentMethods || []);
     
-    // FIX: Load existing areas correctly
+    // Load existing areas
     const loadedAreas: { [area: string]: { baseFee: number } } = {};
     if (driver.deliveryAreas) {
         Object.entries(driver.deliveryAreas).forEach(([area, value]) => {
             if (typeof value === 'number') {
                 loadedAreas[area] = { baseFee: value };
             } else if (typeof value === 'object' && value !== null) {
-                // Cast 'value' to ensure TypeScript knows it has baseFee
                 loadedAreas[area] = value as { baseFee: number };
             }
         });
@@ -51,7 +52,6 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
     setDeliveryAreas(loadedAreas);
 
     const initialFees = {} as { [key in PaymentMethod]?: FeeStructure };
-    // Safe access to fees if they exist, otherwise default
     const driverFees = (driver as any).fees || {}; 
     
     for (const method of Object.values(PaymentMethod)) {
@@ -103,7 +103,6 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
     e.preventDefault();
     setIsLoading(true);
     
-    // Simple vehicle string parsing
     const vehicleObj = typeof vehicle === 'string' 
         ? { make: vehicle, model: '', year: 2020, licensePlate: '' } 
         : vehicle;
@@ -111,12 +110,13 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
     const updatedDriver: Driver = {
       ...driver,
       name,
-      vehicle: vehicleObj as any,
+      phoneNumber, // <--- Save the phone number
+      vehicleDetails: vehicleObj as any, // Mapped back to correct property
       acceptedPaymentMethods: acceptedMethods,
-      fees: fees, // Note: Ensure types.ts actually has 'fees' on Driver, or cast as any if temporary
+      fees: fees,
       paymentPhoneNumber: paymentPhone,
       deliveryAreas: deliveryAreas,
-    } as Driver; // Force cast to Driver to handle any strict type mismatches
+    } as Driver; 
     
     await onSave(updatedDriver);
     setIsLoading(false);
@@ -168,6 +168,20 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                   <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
                 </div>
+                
+                {/* --- NEW FIELD: WhatsApp Number --- */}
+                <div>
+                  <label htmlFor="mainPhone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">WhatsApp Number</label>
+                  <input 
+                    type="tel" 
+                    id="mainPhone" 
+                    value={phoneNumber} 
+                    onChange={e => setPhoneNumber(e.target.value)} 
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" 
+                    placeholder="e.g. +27 12 345 6789"
+                  />
+                </div>
+
                 <div>
                   <label htmlFor="vehicle" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Vehicle</label>
                   <input type="text" id="vehicle" value={vehicle} onChange={e => setVehicle(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
@@ -180,7 +194,7 @@ const DriverEditProfileModal: React.FC<DriverEditProfileModalProps> = ({ driver,
                     <p className='text-sm text-gray-500 dark:text-gray-400'>Select the payment methods you accept and set the corresponding fees.</p>
                     {/* HIDE PAYSTACK: Filter it out of the displayed list */}
                     {Object.values(PaymentMethod)
-                        .filter(method => method !== PaymentMethod.PAYSTACK) // <--- ADDED FILTER HERE
+                        .filter(method => method !== PaymentMethod.PAYSTACK) 
                         .map(method => (
                         <div key={method} className="p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                             <label className="flex items-center justify-between cursor-pointer">
